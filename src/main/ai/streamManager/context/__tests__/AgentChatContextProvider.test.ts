@@ -254,6 +254,23 @@ describe('AgentChatContextProvider', () => {
     await expect(provider.validateDispatch(openReq())).rejects.toBe(workspaceError)
   })
 
+  it('does not reserve or enqueue a turn when stopped during workspace validation', async () => {
+    const controller = new AbortController()
+    const validation = Promise.withResolvers<void>()
+    mocks.runtimeValidateSession.mockReturnValueOnce(validation.promise)
+    const preparation = provider.prepareDispatch(makeSubscriber(), openReq(), {
+      hasLiveStream: false,
+      signal: controller.signal
+    })
+    controller.abort(new DOMException('Stopped', 'AbortError'))
+    validation.resolve()
+    await expect(preparation).rejects.toMatchObject({ name: 'AbortError' })
+    expect(mocks.saveMessage).not.toHaveBeenCalled()
+    expect(mocks.saveMessagesTx).not.toHaveBeenCalled()
+    expect(mocks.runtimeBeginTurn).not.toHaveBeenCalled()
+    expect(mocks.runtimeEnqueueUserMessage).not.toHaveBeenCalled()
+  })
+
   it('prepares live inject without creating a new runtime turn or assistant placeholder', async () => {
     const subscriber = makeSubscriber()
     mocks.runtimeIsSessionBusy.mockReturnValue(true)

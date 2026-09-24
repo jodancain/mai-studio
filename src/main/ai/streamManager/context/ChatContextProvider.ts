@@ -39,6 +39,8 @@ export interface PreparedDispatch {
     abortController?: AbortController
   }>
   listeners: StreamListener[]
+  /** Release reservations and runtime ownership when cancellation wins before manager.send. */
+  cancelPreparation?: (reason: unknown) => Promise<void>
   /**
    * Set only by the persistent provider's live-submit (steer) branch: the id of the steer user row to
    * enqueue. Its presence is the explicit signal that this dispatch is enqueue-only — the dispatcher
@@ -64,6 +66,7 @@ export interface PreparedDispatch {
 }
 
 export interface DispatchContext {
+  signal?: AbortSignal
   /** True when the topic has a live stream at initial dispatch admission. */
   hasLiveStream: boolean
   /** Reject instead of enqueueing when the runtime becomes busy during preparation. */

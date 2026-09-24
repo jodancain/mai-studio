@@ -114,6 +114,56 @@ beforeEach(() => {
 })
 
 describe('dispatchStreamRequest — steer', () => {
+  it('drains a cancelled preparation before rejecting without launching its reserved turn', async () => {
+    const controller = new AbortController()
+    const cleanupStarted = Promise.withResolvers<void>()
+    const cleanupGate = Promise.withResolvers<void>()
+    let cleaned = false
+    let settled = false
+    mocks.persistentPrepare.mockImplementation(async () => ({
+      topicId: 'topic-1',
+      models: [],
+      listeners: [],
+      cancelPreparation: async () => {
+        cleanupStarted.resolve()
+        await cleanupGate.promise
+        cleaned = true
+      }
+    }))
+    const manager = makeManager(false)
+    const dispatch = dispatchStreamRequest(manager, makeSubscriber(), chatReq('topic-1'), controller.signal)
+    const rejected = expect(dispatch).rejects.toMatchObject({ name: 'AbortError' })
+    void dispatch.catch(() => {
+      settled = true
+    })
+    controller.abort(new DOMException('Stopped', 'AbortError'))
+    await cleanupStarted.promise
+    expect(settled).toBe(false)
+    expect(manager.send).not.toHaveBeenCalled()
+    cleanupGate.resolve()
+    await rejected
+    expect(cleaned).toBe(true)
+    expect(manager.enqueuePendingSteer).not.toHaveBeenCalled()
+  })
+
+  it('surfaces cancellation persistence failures instead of replacing them with AbortError', async () => {
+    const controller = new AbortController()
+    const failure = new Error('Could not persist the paused reservation')
+    mocks.persistentPrepare.mockResolvedValue({
+      topicId: 'topic-1',
+      models: [],
+      listeners: [],
+      cancelPreparation: async () => {
+        throw failure
+      }
+    })
+    const manager = makeManager(false)
+    const dispatch = dispatchStreamRequest(manager, makeSubscriber(), chatReq('topic-1'), controller.signal)
+    controller.abort(new DOMException('Stopped', 'AbortError'))
+    await expect(dispatch).rejects.toBe(failure)
+    expect(manager.send).not.toHaveBeenCalled()
+  })
+
   it('persists a live chat submit as a steer and enqueues it (no abort, stream stays live)', async () => {
     wirePrepare(mocks.persistentPrepare, 'topic-1', {
       inject: true,

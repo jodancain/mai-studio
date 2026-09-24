@@ -14,7 +14,7 @@ import { getKnowledgeBaseIdsFromParts } from '@shared/data/types/uiParts'
 
 import { startAiChildTurnSpan } from '../../../observability'
 import { AiStreamAdmissionError } from '../../admission'
-import { PersistenceListener } from '../../listeners/PersistenceListener'
+import { PersistenceListener, TerminalPersistenceError } from '../../listeners/PersistenceListener'
 import type { StreamListener } from '../../types'
 import type { MainSteerContinuationRequest } from '../dispatch'
 import { resolveAssistantModelId, resolveModels, resolvePersistentSiblingsGroupId } from '../modelResolution'
@@ -116,6 +116,109 @@ describe('PersistentChatContextProvider — steer continuation history', () => {
         }
       ])
     )
+  })
+
+  it.each([
+    ['submit-message', 'preparation'],
+    ['steer-continuation', 'preparation'],
+    ['submit-message', 'handoff'],
+    ['steer-continuation', 'handoff']
+  ] as const)('persists cancelled %s at %s as paused and permits another turn', async (trigger, phase) => {
+    const controller = new AbortController()
+    const request =
+      trigger === 'submit-message'
+        ? {
+            trigger,
+            topicId: 'topic-1',
+            parentAnchorId: 'a1',
+            userMessageParts: [{ type: 'text' as const, text: 'cancel me' }]
+          }
+        : { trigger, topicId: 'topic-1', userMessageId: 'u1', fastMode: false }
+    const preparation = provider.prepareDispatch(makeSubscriber(), request, {
+      hasLiveStream: false,
+      signal: controller.signal
+    })
+    if (phase === 'preparation') {
+      controller.abort(new DOMException('Stopped', 'AbortError'))
+      await expect(preparation).rejects.toMatchObject({ name: 'AbortError' })
+    } else {
+      const prepared = await preparation
+      await prepared.cancelPreparation!(new DOMException('Stopped', 'AbortError'))
+    }
+
+    const reserved = dbh.db
+      .select()
+      .from(messageTable)
+      .all()
+      .filter((row) => row.role === 'assistant' && row.id !== 'a1')
+    expect(reserved).toHaveLength(1)
+    expect(reserved[0]).toMatchObject({ status: 'paused', data: { parts: [] } })
+    expect(messageService.findPendingAssistantMessageIds()).toEqual([])
+
+    const next = await provider.prepareDispatch(
+      makeSubscriber(),
+      {
+        trigger: 'submit-message',
+        topicId: 'topic-1',
+        parentAnchorId: reserved[0].id,
+        userMessageParts: [{ type: 'text', text: 'try again' }]
+      },
+      { hasLiveStream: false }
+    )
+    expect(next.models).toHaveLength(1)
+    expect(messageService.getById(reserved[0].id).status).toBe('paused')
+    expect(messageService.findPendingAssistantMessageIds()).toHaveLength(1)
+  })
+
+  it('marks a failed cancelled write terminal and surfaces the persistence error', async () => {
+    const controller = new AbortController()
+    const failWrite = vi.spyOn(messageService, 'finalizeAssistantMessage').mockImplementationOnce(() => {
+      throw new Error('disk write failed')
+    })
+    try {
+      const preparation = provider.prepareDispatch(
+        makeSubscriber(),
+        {
+          trigger: 'submit-message',
+          topicId: 'topic-1',
+          parentAnchorId: 'a1',
+          userMessageParts: [{ type: 'text', text: 'cancel me' }]
+        },
+        { hasLiveStream: false, signal: controller.signal }
+      )
+      controller.abort(new DOMException('Stopped', 'AbortError'))
+      await expect(preparation).rejects.toBeInstanceOf(TerminalPersistenceError)
+      const reserved = dbh.db
+        .select()
+        .from(messageTable)
+        .all()
+        .filter((row) => row.role === 'assistant' && row.id !== 'a1')
+      expect(reserved).toHaveLength(1)
+      expect(reserved[0].status).toBe('error')
+      expect(messageService.findPendingAssistantMessageIds()).toEqual([])
+    } finally {
+      failWrite.mockRestore()
+    }
+  })
+
+  it('pauses a retry cancelled after resetting its original assistant row', async () => {
+    aiStreamManager.awaitExecutionRetry
+      .mockResolvedValueOnce({ mode: 'start-new' })
+      .mockResolvedValueOnce({ mode: 'start-new' })
+    const prepared = await provider.prepareDispatch(
+      makeSubscriber(),
+      {
+        trigger: 'regenerate-message',
+        topicId: 'topic-1',
+        parentAnchorId: 'u1',
+        retryMessageId: 'a1'
+      },
+      { hasLiveStream: false }
+    )
+    expect(messageService.getById('a1').status).toBe('pending')
+    await prepared.cancelPreparation!(new DOMException('Stopped', 'AbortError'))
+    expect(messageService.getById('a1')).toMatchObject({ status: 'paused', data: { parts: [] } })
+    expect(messageService.findPendingAssistantMessageIds()).toEqual([])
   })
 
   it('rebuilds a prompt that carries the paused partial when the new turn anchors on the paused row', async () => {
@@ -854,6 +957,36 @@ describe('PersistentChatContextProvider — prepareContinueDispatch (resume-afte
       ])
     )
   })
+
+  it.each(['preparation', 'handoff'])(
+    'settles a cancelled continuation at %s without losing the existing answer or turn options',
+    async (phase) => {
+      const controller = new AbortController()
+      const preparation = provider.prepareDispatch(
+        makeSubscriber(),
+        {
+          trigger: 'continue-conversation',
+          topicId: 'topic-1',
+          parentAnchorId: 'a1',
+          approvalDecisions: [{ approvalId: APPROVAL_ID, approved: true }]
+        },
+        { hasLiveStream: false, signal: controller.signal }
+      )
+      if (phase === 'preparation') {
+        controller.abort(new DOMException('Stopped', 'AbortError'))
+        await expect(preparation).rejects.toMatchObject({ name: 'AbortError' })
+      } else {
+        const prepared = await preparation
+        await prepared.cancelPreparation!(new DOMException('Stopped', 'AbortError'))
+      }
+
+      const anchor = messageService.getById('a1')
+      expect(anchor.status).toBe('paused')
+      expect(anchor.data.parts).toContainEqual({ type: 'text', text: 'let me call a tool' })
+      expect(anchor.data.turnOptions).toEqual({ reasoningEffort: 'high', serviceTier: 'flex', fastMode: true })
+      expect(messageService.findPendingAssistantMessageIds()).toEqual([])
+    }
+  )
 
   it('rejects when the anchor is not an assistant message (anchor guard)', async () => {
     await expect(

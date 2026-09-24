@@ -11,18 +11,18 @@ import type { AiStreamManagerConfig, StreamListener } from '../types'
 // and can observe whether a second dispatch on the same topic waits its turn.
 const dispatchEvents: string[] = []
 const dispatchResolvers: Array<() => void> = []
-const mockDispatchStreamRequest = vi.fn(
-  (_manager: unknown, _subscriber: unknown, req: { topicId: string }): Promise<unknown> => {
-    const seq = dispatchResolvers.length
-    dispatchEvents.push(`start:${req.topicId}:${seq}`)
-    return new Promise((resolve) => {
-      dispatchResolvers.push(() => {
-        dispatchEvents.push(`end:${req.topicId}:${seq}`)
-        resolve({ mode: 'started' })
-      })
+const mockDispatchStreamRequest = vi.fn<
+  (manager: unknown, subscriber: unknown, req: { topicId: string }, signal?: AbortSignal) => Promise<unknown>
+>((_manager, _subscriber, req) => {
+  const seq = dispatchResolvers.length
+  dispatchEvents.push(`start:${req.topicId}:${seq}`)
+  return new Promise((resolve) => {
+    dispatchResolvers.push(() => {
+      dispatchEvents.push(`end:${req.topicId}:${seq}`)
+      resolve({ mode: 'started' })
     })
-  }
-)
+  })
+})
 
 vi.mock('../context/dispatch', () => ({
   dispatchStreamRequest: mockDispatchStreamRequest
@@ -86,6 +86,54 @@ describe('AiStreamManager.dispatch — per-topic serialization', () => {
 
   afterEach(() => {
     BaseService.resetInstances()
+  })
+
+  it.each(['user', 'shutdown'] as const)('cancels preparation and drains its cleanup on %s stop', async (reason) => {
+    let completeCleanup!: () => void
+    const cleanup = new Promise<void>((resolve) => {
+      completeCleanup = resolve
+    })
+    let aborted = false
+    mockDispatchStreamRequest.mockImplementationOnce(
+      (_manager, _subscriber, _req, signal?: AbortSignal) =>
+        new Promise((_resolve, reject) => {
+          signal?.addEventListener(
+            'abort',
+            () => {
+              aborted = true
+              void cleanup.then(() => reject(signal.reason))
+            },
+            { once: true }
+          )
+        })
+    )
+    const result = mgr.dispatch(fakeSubscriber, openReq('preparing'))
+    const cancelled = expect(result).rejects.toMatchObject({ name: 'AbortError' })
+    await flush()
+    let stopped = false
+    const stop = (
+      reason === 'user'
+        ? mgr.abortAndDrain('preparing', 'user')
+        : (mgr as unknown as { onStop(): Promise<void> }).onStop()
+    ).then(() => {
+      stopped = true
+    })
+    await flush()
+    expect(aborted).toBe(true)
+    expect(stopped).toBe(false)
+    completeCleanup()
+    await stop
+    await cancelled
+    expect(mgr.listActiveWork()).toEqual([])
+
+    const next = mgr.dispatch(fakeSubscriber, openReq('preparing'))
+    if (reason === 'shutdown') {
+      await expect(next).resolves.toMatchObject({ mode: 'blocked', reason: 'paused' })
+    } else {
+      await flush()
+      await settleDispatch(0)
+      await expect(next).resolves.toMatchObject({ mode: 'started' })
+    }
   })
 
   it('serializes two concurrent dispatches on the same topic — the second waits for the first', async () => {

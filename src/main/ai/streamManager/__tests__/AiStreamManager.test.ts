@@ -1958,27 +1958,37 @@ describe('AiStreamManager', () => {
 
       expect(response).toEqual({
         status: 'attached',
+        replayWatermarks: [{ executionId: 'provider-a::model-a', attemptId, sequence: 4 }],
         bufferedChunks: [
           {
             topicId: 'a',
             executionId: 'provider-a::model-a',
             attemptId,
+            sequence: 1,
             chunk: { type: 'text-start', id: 'p1' }
           },
           {
             topicId: 'a',
             executionId: 'provider-a::model-a',
             attemptId,
+            sequence: 3,
             chunk: { type: 'text-delta', id: 'p1', delta: 'hello' }
           },
           {
             topicId: 'a',
             executionId: 'provider-a::model-a',
             attemptId,
+            sequence: 4,
             chunk: { type: 'text-end', id: 'p1' }
           }
         ]
       })
+      mgr.onChunk('a', 'provider-a::model-a', { type: 'start-step' })
+      expect(sender.send).toHaveBeenLastCalledWith(
+        expect.any(String),
+        'ai.stream.chunk',
+        expect.objectContaining({ attemptId, sequence: 5, chunk: { type: 'start-step' } })
+      )
     })
 
     it('ring buffer merges a same-part delta flood on ingest instead of evicting its opener', () => {
@@ -2169,7 +2179,7 @@ describe('AiStreamManager', () => {
         type: 'tool-input-available',
         toolCallId: 'call-1',
         toolName: 'search',
-        input: { query: 'Cherry Studio' }
+        input: { query: 'mai studio' }
       })
       approvalMgr.onChunk('a', 'provider-a::model-a', {
         type: 'tool-approval-request',
@@ -2206,7 +2216,7 @@ describe('AiStreamManager', () => {
         type: 'tool-input-available',
         toolCallId: 'call-1',
         toolName: 'search',
-        input: { query: 'Cherry Studio' }
+        input: { query: 'mai studio' }
       })
       for (let i = 0; i < 2; i++) {
         approvalMgr.onChunk('a', 'provider-a::model-a', {

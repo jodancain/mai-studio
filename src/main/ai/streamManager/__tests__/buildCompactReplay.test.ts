@@ -4,6 +4,19 @@ import { describe, expect, it } from 'vitest'
 import { buildCompactReplay, mergeDeltaPayload, splitDeltaPayload } from '../buildCompactReplay'
 
 describe('buildCompactReplay', () => {
+  it('keeps the covered source sequence on compacted replay deltas', () => {
+    expect(
+      buildCompactReplay([
+        { topicId: 'topic', sequence: 1, chunk: { type: 'text-start', id: 'p1' } },
+        { topicId: 'topic', sequence: 2, chunk: { type: 'text-delta', id: 'p1', delta: 'same' } },
+        { topicId: 'topic', sequence: 3, chunk: { type: 'text-delta', id: 'p1', delta: 'same' } }
+      ])
+    ).toEqual([
+      { topicId: 'topic', sequence: 1, chunk: { type: 'text-start', id: 'p1' } },
+      { topicId: 'topic', sequence: 3, chunk: { type: 'text-delta', id: 'p1', delta: 'samesame' } }
+    ])
+  })
+
   it('merges consecutive text-delta chunks with the same id', () => {
     const result = buildCompactReplay([
       { topicId: 'topic-1', chunk: { type: 'text-start', id: 'p1' } },

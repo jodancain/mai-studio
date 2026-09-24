@@ -44,6 +44,8 @@ export interface StreamChunkPayload {
   attemptId?: number
   /** Assistant row this execution writes to. Disambiguates same-model chained turns. */
   anchorMessageId?: string
+  /** Last source chunk covered by this payload, monotonic within one runtime attempt. */
+  sequence?: number
   chunk: UIMessageChunk
 }
 
@@ -293,7 +295,17 @@ export interface AiStreamAttachTerminal {
 }
 export type AiStreamAttachResponse =
   | { status: 'not-found' }
-  | { status: 'attached'; bufferedChunks: StreamChunkPayload[] }
+  | {
+      status: 'attached'
+      bufferedChunks: StreamChunkPayload[]
+      /** Inclusive replay boundary; live chunks through this sequence are already represented above. */
+      replayWatermarks?: Array<{
+        executionId: UniqueModelId
+        attemptId: number
+        anchorMessageId?: string
+        sequence: number
+      }>
+    }
   | ({ status: 'done' } & AiStreamAttachTerminal)
   | ({ status: 'paused' } & AiStreamAttachTerminal)
   | { status: 'error'; error?: SerializedError }

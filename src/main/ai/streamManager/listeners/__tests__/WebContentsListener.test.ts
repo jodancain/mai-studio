@@ -41,6 +41,33 @@ afterEach(() => {
 })
 
 describe('WebContentsListener coalescing', () => {
+  it('preserves the last source sequence when live deltas are coalesced', () => {
+    const wc = fakeWc()
+    const listener = new WebContentsListener(wc as unknown as Electron.WebContents, 'topic-1')
+    listener.onChunk(chunk('text-delta', { id: 't1', delta: 'same' }), 'openai::gpt-4o', 'anchor', 4, 8)
+    listener.onChunk(chunk('text-delta', { id: 't1', delta: 'same' }), 'openai::gpt-4o', 'anchor', 4, 9)
+    listener.onChunk(chunk('text-end', { id: 't1' }), 'openai::gpt-4o', 'anchor', 4, 10)
+
+    expect(wc.send.mock.calls.map((call) => call[2])).toEqual([
+      {
+        topicId: 'topic-1',
+        executionId: 'openai::gpt-4o',
+        anchorMessageId: 'anchor',
+        attemptId: 4,
+        sequence: 9,
+        chunk: { type: 'text-delta', id: 't1', delta: 'samesame' }
+      },
+      {
+        topicId: 'topic-1',
+        executionId: 'openai::gpt-4o',
+        anchorMessageId: 'anchor',
+        attemptId: 4,
+        sequence: 10,
+        chunk: { type: 'text-end', id: 't1' }
+      }
+    ])
+  })
+
   it('merges consecutive text-deltas with same id into one send', () => {
     const wc = fakeWc()
     const l = new WebContentsListener(wc as unknown as Electron.WebContents, 'topic-1')

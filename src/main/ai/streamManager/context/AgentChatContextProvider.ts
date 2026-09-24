@@ -288,7 +288,23 @@ export class AgentChatContextProvider implements ChatContextProvider {
         }
       ],
       reservedMessages: savedMessages.map(toReservedAgentUIMessage),
-      listeners: [subscriber, ...runtime.listeners]
+      listeners: [subscriber, ...runtime.listeners],
+      cancelPreparation: async (reason) => {
+        runtime.abortController.abort(reason)
+        try {
+          const results = await Promise.allSettled(
+            runtime.listeners
+              .filter((listener) => listener.terminalPhase === 'persistence')
+              .map((listener) => listener.onPaused({ status: 'paused' }))
+          )
+          for (const result of results) {
+            if (result.status === 'rejected') throw result.reason
+          }
+        } finally {
+          turnTrace.end('error', reason instanceof Error ? reason : new Error(String(reason)))
+          await application.get('AgentSessionRuntimeService').closeSession(validated.sessionId)
+        }
+      }
     }
   }
 
@@ -306,15 +322,19 @@ export class AgentChatContextProvider implements ChatContextProvider {
     authority: AgentSessionTurnAuthority,
     ctx?: DispatchContext
   ): Promise<PreparedDispatch> {
+    ctx?.signal?.throwIfAborted()
     const validated = await this.validateDispatch(req, authority)
+    ctx?.signal?.throwIfAborted()
     const runtime = application.get('AgentSessionRuntimeService')
     runtime.assertSessionWritable(validated.sessionId)
     if (req.trigger === 'edit-agent-message') {
       if (ctx?.hasLiveStream) throw new AgentSessionEditError('busy')
       runtime.assertSessionEditable(validated.sessionId)
       await validateEditedInput(validated.userMessageParts)
+      ctx?.signal?.throwIfAborted()
       validated.shouldAutoNameInitialTurn = false
       const persisted = await runtime.editSession(validated.sessionId, req.editTarget, (tx, nativeSessionId) => {
+        ctx?.signal?.throwIfAborted()
         const result = this.persistDispatchTx(tx, validated, {
           id: validated.agentId,
           updatedAt: validated.agentUpdatedAt,

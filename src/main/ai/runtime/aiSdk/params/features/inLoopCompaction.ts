@@ -234,6 +234,7 @@ export const inLoopCompactionFeature: RequestFeature = {
         try {
           compacted = await compactModelMessages(candidate, model, {
             keepRecentTurns,
+            abortSignal: scope.signal,
             maxOutputTokens,
             maxInputTokens: Math.max(
               COMPACTION_MIN_INPUT_BUDGET,

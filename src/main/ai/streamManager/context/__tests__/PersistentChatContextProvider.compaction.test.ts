@@ -80,6 +80,7 @@ vi.mock('@main/data/services/MessageService', () => ({
     isAwaitingInputLeaf: vi.fn(() => false),
     create: vi.fn(),
     update: vi.fn(),
+    finalizeAssistantMessage: vi.fn(),
     createUserMessageWithPlaceholders: vi.fn(),
     getChildrenByParentId: vi.fn()
   }
@@ -87,7 +88,8 @@ vi.mock('@main/data/services/MessageService', () => ({
 
 // Mock resolveRequestContextSettings — controls whether compression is on.
 // Path relative to this test file: __tests__ → context → streamManager → ai → contextBuild
-vi.mock('../../../contextBuild/resolveRequestContextSettings', () => ({
+vi.mock('../../../contextBuild/resolveRequestContextSettings', async (importOriginal) => ({
+  ...(await importOriginal<typeof RequestContextSettingsModule>()),
   resolveRequestContextSettings: mockResolveRequestContextSettings
 }))
 
@@ -256,7 +258,8 @@ async function makeHistory(
   anchorId: string,
   models = [DEFAULT_MODEL_ID],
   /** Patch the resolved Model rows (e.g. drop or widen `contextWindow`). */
-  modelPatch?: Partial<ReturnType<typeof makeModel>>
+  modelPatch?: Partial<ReturnType<typeof makeModel>>,
+  signal?: AbortSignal
 ) {
   const { resolveModels } = await import('../modelResolution')
   vi.mocked(resolveModels).mockReturnValueOnce(models.map((id) => ({ ...makeModel(id), ...modelPatch })))
@@ -271,7 +274,7 @@ async function makeHistory(
   const prepared = await provider.prepareDispatch(
     makeSubscriber(),
     { trigger: 'submit-message', topicId: 'topic-1', parentAnchorId: anchorId, userMessageParts: [] } as any,
-    { hasLiveStream: false }
+    { hasLiveStream: false, signal }
   )
   return { messages: prepared.models[0].request.messages ?? [], prepared }
 }
@@ -295,6 +298,26 @@ describe('PersistentChatContextProvider — durable compaction integration', () 
     })
     // Owned tool-output blob entry → passes resolveOwnedBlobPath's isToolOutputBlobEntry gate.
     mockFindFileEntryById.mockReturnValue({ origin: 'internal', cleanupPolicy: 'delete_when_unreferenced', ext: 'txt' })
+  })
+
+  it('does not persist a late summary after the user stops preparation', async () => {
+    compressionOn()
+    const controller = new AbortController()
+    mockGetPathToNode.mockReturnValue([
+      fakeMsg('u1', 'user', 'token '.repeat(1400)),
+      fakeMsg('a1', 'assistant', 'token '.repeat(1400)),
+      fakeMsg('u2', 'user', 'token '.repeat(1400))
+    ])
+    mockSummarizeModelMessages.mockImplementationOnce(async (_messages, _model, options) => {
+      expect(options.abortSignal).toBe(controller.signal)
+      controller.abort(new DOMException('Stopped', 'AbortError'))
+      return 'CANCELLED_SUMMARY'
+    })
+    await expect(makeHistory('u2', undefined, undefined, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError'
+    })
+    expect(mockSetCompactionSummary).not.toHaveBeenCalled()
+    expect(capturedChunks.map((chunk) => chunk.data.status)).toEqual(['compacting', 'skipped'])
   })
 
   it('1. under budget, no marker → full history served, no summarization', async () => {

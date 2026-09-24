@@ -1,6 +1,8 @@
+import { setupTestDatabase } from '@test-helpers/db'
 import { generateText } from 'ai'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { aiUsageRecordTable } from '@data/db/schemas/aiUsageRecord'
 import { ENDPOINT_TYPE } from '@shared/data/types/model'
 
 import { makeModel, makeProvider } from '../../__tests__/fixtures'
@@ -16,13 +18,14 @@ vi.mock('@main/data/services/ModelService', () => ({ modelService: { getByKey: m
 vi.mock('@main/ai/provider/config', () => ({
   resolveProviderAiSdkConfig: async (...args: unknown[]) => ({
     config: await providerConfig(...args),
-    credentialReceipt: { attribution: 'unknown' }
+    credentialReceipt: { attribution: 'explicit', id: 'summary-key', label: 'Summary credential', masked: '***test' }
   })
 }))
 
 const CONVERSATION = { id: 'conversation-1', topicId: 'topic-1' }
 
 describe('resolveCompressionModel', () => {
+  const dbh = setupTestDatabase()
   beforeEach(() => {
     providerLookup.mockReturnValue(makeProvider({ id: 'opencode' }))
     modelLookup.mockReturnValue(
@@ -131,6 +134,16 @@ describe('resolveCompressionModel', () => {
       const summary = await generateText({ model: descriptor!.languageModel, prompt: 'Summarize this conversation.' })
       expect(summary.text).toBe('SUMMARY')
       expect(outgoing).toHaveLength(1)
+      const usage = dbh.db.select().from(aiUsageRecordTable).all()
+      expect(usage).toHaveLength(1)
+      expect(usage[0]).toMatchObject({
+        providerId: 'opencode',
+        modelId: 'small',
+        inputTokens: 1,
+        outputTokens: 1,
+        apiKeyId: 'summary-key',
+        apiKeyAttribution: 'explicit'
+      })
       expect(outgoing[0].get('x-opencode-session')).toBe(explicitSession ?? CONVERSATION.id)
     }
   )

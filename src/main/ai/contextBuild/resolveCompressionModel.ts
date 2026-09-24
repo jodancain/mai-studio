@@ -2,7 +2,7 @@
  * Resolve a Cherry-side compression-model selector (`<providerId>::<modelId>`
  * UniqueModelId) into a `LanguageModelV3` via the SAME path the agent uses:
  * Provider+Model rows (DataApi) → `resolveSdkConfig` → `createExecutor`
- * → `executor.languageModel(modelId)`.
+ * → `executor.resolveLanguageModel(modelId)`.
  *
  * Returns `null` (never throws) on any failure — the compress feature treats
  * null as "compression off" so a misconfigured model never breaks the chat.
@@ -18,7 +18,9 @@ import { modelService } from '@main/data/services/ModelService'
 import { providerService } from '@main/data/services/ProviderService'
 import { isUniqueModelId, parseUniqueModelId } from '@shared/data/types/model'
 
+import { createAiUsagePlugin } from '../hooks/billingHook'
 import type { ConversationRef } from '../types'
+import { createAiUsageCaptureContext } from '../utils/usageCapture'
 import { resolveContextWindow } from './resolveContextWindow'
 
 const logger = loggerService.withContext('resolveCompressionModel')
@@ -66,13 +68,31 @@ export async function resolveCompressionModel(
   }
 
   try {
-    const { sdkConfig } = await resolveSdkConfig(provider, model, resolveEffectiveEndpoint(provider, model))
+    const { sdkConfig, credentialReceipt } = await resolveSdkConfig(
+      provider,
+      model,
+      resolveEffectiveEndpoint(provider, model)
+    )
     // App provider extensions are registered beyond the executor's built-in type union.
     const executor = await createExecutor(
       sdkConfig.providerId as Parameters<typeof createExecutor>[0],
-      sdkConfig.providerSettings as Parameters<typeof createExecutor>[1]
+      sdkConfig.providerSettings as Parameters<typeof createExecutor>[1],
+      [
+        createAiUsagePlugin(
+          createAiUsageCaptureContext({
+            providerId: provider.id,
+            providerName: provider.name,
+            modelId: sdkConfig.modelId,
+            modelName: model.name,
+            pricing: model.pricing,
+            trustProviderReportedCost: provider.reportsActualCost,
+            reportedCostCurrency: provider.reportedCostCurrency,
+            credentialReceipt
+          })
+        )
+      ]
     )
-    const languageModel = await executor.languageModel(sdkConfig.modelId)
+    const languageModel = await executor.resolveLanguageModel(sdkConfig.modelId)
     return {
       languageModel: sdkConfig.conversationHeader
         ? wrapLanguageModel({

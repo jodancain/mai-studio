@@ -351,7 +351,10 @@ export class AiStreamManager extends BaseService {
   private readonly pauseHolds = new Set<symbol>()
   /** Gate-admitted dispatches still inside `prepareDispatch → send`. Registered before the
    *  first async admission gap can yield to pause/drain, then removed after stream handoff. */
-  private readonly inFlightDispatches = new Map<Promise<AiStreamOpenResponse>, string>()
+  private readonly inFlightDispatches = new Map<
+    Promise<AiStreamOpenResponse>,
+    { topicId: string; controller: AbortController }
+  >()
   /** Terminal persistence listeners currently writing by topic. Unlike `hasLiveStream`, this remains
    *  true after terminal status is published and clears before runtime/renderer terminal listeners run. */
   private readonly terminalPersistenceCounts = new Map<string, number>()
@@ -426,14 +429,15 @@ export class AiStreamManager extends BaseService {
       // from `startNextChatTurn`, which is itself gated; the exemption covers the microtask race
       // where a pause lands between that gate and this one, and the grandfathered launch is
       // awaited by `drainInFlight` via `inFlightChatContinuations`.
-      if (this.isWriteQuiesced && req.trigger !== 'steer-continuation') {
+      if (this.isShuttingDown || (this.isWriteQuiesced && req.trigger !== 'steer-continuation')) {
         return {
           mode: 'blocked' as const,
           reason: 'paused' as const
         }
       }
-      const admission = dispatchStreamRequest(this, subscriber, req)
-      this.inFlightDispatches.set(admission, req.topicId)
+      const controller = new AbortController()
+      const admission = dispatchStreamRequest(this, subscriber, req, controller.signal)
+      this.inFlightDispatches.set(admission, { topicId: req.topicId, controller })
       try {
         return await admission
       } finally {
@@ -556,7 +560,7 @@ export class AiStreamManager extends BaseService {
       if (!isLiveStatus(stream.status)) continue
       work.push({ id: topicId, summary: `stream:${stream.status} execs=${stream.executions.size}` })
     }
-    for (const topicId of new Set(this.inFlightDispatches.values())) {
+    for (const topicId of new Set([...this.inFlightDispatches.values()].map((entry) => entry.topicId))) {
       work.push({ id: `dispatch:${topicId}`, summary: 'stream dispatch admitting' })
     }
     for (const topicId of this.inFlightChatContinuations.keys()) {
@@ -574,7 +578,7 @@ export class AiStreamManager extends BaseService {
       if (!persistent) continue
       for (const exec of stream.executions.values()) entries.push([exec.loopPromise, topicId])
     }
-    for (const [admission, topicId] of this.inFlightDispatches) {
+    for (const [admission, { topicId }] of this.inFlightDispatches) {
       entries.push([admission, `dispatch:${topicId}`])
     }
     for (const [topicId, launch] of this.inFlightChatContinuations) {
@@ -624,8 +628,11 @@ export class AiStreamManager extends BaseService {
       .filter(([, s]) => isLiveStatus(s.status))
       .map(([topicId]) => topicId)
 
-    if (activeTopics.length === 0) return
-    logger.info('Stopping active streams on shutdown', { count: activeTopics.length })
+    const admissions = [...this.inFlightDispatches.keys()]
+    for (const entry of this.inFlightDispatches.values()) {
+      entry.controller.abort(new DOMException('app-shutdown', 'AbortError'))
+    }
+    if (activeTopics.length > 0) logger.info('Stopping active streams on shutdown', { count: activeTopics.length })
 
     const loopPromises: Promise<void>[] = []
     for (const topicId of activeTopics) {
@@ -637,7 +644,7 @@ export class AiStreamManager extends BaseService {
       this.abort(topicId, 'app-shutdown')
     }
 
-    await Promise.allSettled(loopPromises)
+    await Promise.allSettled([...admissions, ...loopPromises])
   }
 
   protected onDestroy(): void {
@@ -1009,7 +1016,7 @@ export class AiStreamManager extends BaseService {
     if (this.terminalDispatchInFlight.has(topicId)) return true
     if (this.pendingSteers.has(topicId) || this.startingNextChatTopicIds.has(topicId)) return true
     if (this.inFlightChatContinuations.has(topicId)) return true
-    return [...this.inFlightDispatches.values()].includes(topicId)
+    return [...this.inFlightDispatches.values()].some((entry) => entry.topicId === topicId)
   }
 
   /** Resolves once this topic's in-flight terminal dispatch (listeners + lifecycle) has settled. */
@@ -1153,7 +1160,7 @@ export class AiStreamManager extends BaseService {
     // execution's buffer (acceptable: the Renderer demuxes by executionId + anchor).
     for (const exec of stream.executions.values()) {
       for (const chunk of exec.buffer) {
-        listener.onChunk(chunk.chunk, chunk.executionId, chunk.anchorMessageId, chunk.attemptId)
+        listener.onChunk(chunk.chunk, chunk.executionId, chunk.anchorMessageId, chunk.attemptId, chunk.sequence)
       }
     }
     return true
@@ -1208,6 +1215,9 @@ export class AiStreamManager extends BaseService {
 
   /** Abort all executions in a topic. */
   abort(topicId: string, reason: string): void {
+    for (const entry of this.inFlightDispatches.values()) {
+      if (entry.topicId === topicId) entry.controller.abort(new DOMException(reason, 'AbortError'))
+    }
     const stream = this.activeStreams.get(topicId)
     if (!stream || !isLiveStatus(stream.status)) {
       if (isAgentSessionTopic(topicId)) {
@@ -1230,6 +1240,8 @@ export class AiStreamManager extends BaseService {
 
   /** Abort a user-visible topic and hold same-topic admission until its durable teardown settles. */
   async abortAndDrain(topicId: string, reason: string): Promise<void> {
+    // Preparation owns the dispatch lock while awaiting compaction; cancel it before joining that lock.
+    this.abort(topicId, reason)
     await this.withDispatchLock(topicId, async () => {
       const stream = this.activeStreams.get(topicId)
       const loopPromises = stream ? [...stream.executions.values()].map((execution) => execution.loopPromise) : []
@@ -1284,6 +1296,7 @@ export class AiStreamManager extends BaseService {
       executionId: sourceModelId,
       attemptId: exec.attemptId,
       anchorMessageId,
+      sequence: (exec.chunkSequence = (exec.chunkSequence ?? 0) + 1),
       chunk
     }
 
@@ -1371,7 +1384,7 @@ export class AiStreamManager extends BaseService {
         continue
       }
       try {
-        listener.onChunk(chunk, sourceModelId, anchorMessageId, exec.attemptId)
+        listener.onChunk(chunk, sourceModelId, anchorMessageId, exec.attemptId, payload.sequence)
       } catch (err) {
         logger.warn('Listener threw', { topicId, listenerId: id, event: 'onChunk', err })
       }
@@ -1871,7 +1884,13 @@ export class AiStreamManager extends BaseService {
         ...buildCompactReplay(exec.buffer, this.config.maxDeltaBytes).map(projectStreamChunkPayloadForRenderer)
       )
     }
-    return { status: 'attached', bufferedChunks }
+    const replayWatermarks = [...stream.executions.values()].map((exec) => ({
+      executionId: exec.modelId,
+      attemptId: exec.attemptId,
+      anchorMessageId: exec.anchorMessageId,
+      sequence: exec.chunkSequence ?? 0
+    }))
+    return { status: 'attached', bufferedChunks, replayWatermarks }
   }
 
   detach(sender: Electron.WebContents, req: AiStreamDetachRequest): void {
