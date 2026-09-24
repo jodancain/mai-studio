@@ -3,7 +3,7 @@
  * pipeline (`summarizeHistory`), and the in-flight `Janitor`.
  *
  * Vendored from @context-chef/core 3.8.0 (MIT, same author), trimmed to the
- * paths Cherry Studio exercises:
+ * paths mai studio exercises:
  * - No tokenizer path — budget evaluation uses fed usage or the built-in
  *   character heuristic (`estimateObject`).
  * - No in-flight compression model — over-budget histories are handled by the

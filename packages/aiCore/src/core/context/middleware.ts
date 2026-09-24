@@ -4,7 +4,7 @@
  * `LanguageModelMiddleware` wired into the plugin chain.
  *
  * Vendored from @context-chef/ai-sdk-middleware 1.6.0 (MIT, same author),
- * trimmed to the options Cherry Studio uses: `contextWindow`, `compact`,
+ * trimmed to the options mai studio uses: `contextWindow`, `compact`,
  * `truncate`, `onBeforeCompress`, `logger`. In-flight LLM compression
  * (`compress`/`onCompress`), skills, dynamic state, placeholder clearing and
  * custom tokenizers were dropped — LLM summarization is owned by the durable
@@ -319,9 +319,11 @@ function toCompressRole(role: string): CompressRole {
  */
 export function createCompressionAdapter(
   model: LanguageModel,
-  maxOutputTokens: number = COMPRESSION_MIN_OUTPUT_TOKENS
+  maxOutputTokens: number = COMPRESSION_MIN_OUTPUT_TOKENS,
+  abortSignal?: AbortSignal
 ): (messages: ContextMessage[]) => Promise<string> {
   return async (messages: ContextMessage[]): Promise<string> => {
+    abortSignal?.throwIfAborted()
     const formatted = messages.map((m): { role: CompressRole; content: string } => {
       if (m.role === 'tool') {
         return {
@@ -347,8 +349,10 @@ export function createCompressionAdapter(
     const { text } = await generateText({
       model,
       messages: formatted,
-      maxOutputTokens
+      maxOutputTokens,
+      abortSignal
     })
+    abortSignal?.throwIfAborted()
 
     // Return the model's output verbatim — an empty string included. Both
     // callers already fail open on an empty summary (`compactHistory` keeps the
@@ -362,6 +366,7 @@ export function createCompressionAdapter(
 
 /** Options for {@link summarizeModelMessages}. */
 export interface SummarizeMessagesOptions extends SummarizeHistoryOptions {
+  abortSignal?: AbortSignal
   /**
    * Output budget for the summarize call. Derive it from the compression
    * model's window via {@link resolveCompressionOutputTokens} — a fixed value
@@ -389,7 +394,7 @@ export async function summarizeModelMessages(
   model: LanguageModel,
   opts: SummarizeMessagesOptions = {}
 ): Promise<string> {
-  const { maxOutputTokens, ...summarizeOpts } = opts
+  const { maxOutputTokens, abortSignal, ...summarizeOpts } = opts
   const ir = fromModelMessages(messages).filter((m) => m.role !== 'system')
-  return summarizeHistory(ir, createCompressionAdapter(model, maxOutputTokens), summarizeOpts)
+  return summarizeHistory(ir, createCompressionAdapter(model, maxOutputTokens, abortSignal), summarizeOpts)
 }

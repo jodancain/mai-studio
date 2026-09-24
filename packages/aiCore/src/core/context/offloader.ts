@@ -3,7 +3,7 @@
  * replaces it with a head/tail truncation marker carrying a retrieval handle.
  *
  * Vendored from @context-chef/core 3.8.0 (MIT, same author), trimmed to the
- * async offload path Cherry Studio uses (no sync path, no read-back, no
+ * async offload path mai studio uses (no sync path, no read-back, no
  * LRU/cleanup — the main process owns storage lifecycle via VfsBlobService).
  *
  * Hashing uses Web Crypto (`globalThis.crypto.subtle`) so this module stays

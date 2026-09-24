@@ -127,3 +127,25 @@ describe('compactModelMessages', () => {
     expect(result).toBe(messages)
   })
 })
+
+it('cancels the actual summary request and does not return a replacement history', async () => {
+  const controller = new AbortController()
+  let providerCancelled = false
+  const model = createSummarizerModel()
+  model.doGenerate = ({ abortSignal }) =>
+    new Promise((_resolve, reject) => {
+      abortSignal?.addEventListener(
+        'abort',
+        () => {
+          providerCancelled = true
+          reject(abortSignal.reason)
+        },
+        { once: true }
+      )
+      controller.abort(new DOMException('Stopped', 'AbortError'))
+    })
+  await expect(
+    compactModelMessages(plainTurns(8), model, { keepRecentTurns: 1, abortSignal: controller.signal })
+  ).rejects.toMatchObject({ name: 'AbortError' })
+  expect(providerCancelled).toBe(true)
+})
