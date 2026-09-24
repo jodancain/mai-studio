@@ -74,8 +74,7 @@ export function installReleaseArtifact(
       findFile(installedPath, (candidate) => basename(candidate).toLowerCase() === 'cherry studio.exe') ?? ''
   }
 
-  if (!executablePath || !existsSync(executablePath))
-    throw new Error('Installed Cherry Studio executable was not found')
+  if (!executablePath || !existsSync(executablePath)) throw new Error('Installed mai studio executable was not found')
   const record = {
     artifactName: basename(artifactPath),
     artifactPath,

@@ -80,7 +80,7 @@ async function waitForCdp(runnerPid: number, platform: Platform): Promise<{ elec
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 1_000))
   }
-  throw new Error(`Timed out waiting for Cherry Studio CDP: ${lastError}`)
+  throw new Error(`Timed out waiting for mai studio CDP: ${lastError}`)
 }
 
 function getLaunchSpec(
@@ -260,7 +260,7 @@ async function stopOwnedRecord(record: LaunchRecord): Promise<void> {
   }
   const remaining = ownedPids.filter(isAlive)
   if (remaining.length > 0) {
-    throw new Error(`Owned Cherry Studio processes did not exit after SIGTERM: ${remaining.join(', ')}`)
+    throw new Error(`Owned mai studio processes did not exit after SIGTERM: ${remaining.join(', ')}`)
   }
   if (!(await waitForPortRelease(record.platform, record.cdpPort))) {
     throw new Error(`CDP port ${record.cdpPort} was not released after stopping the owned application`)
@@ -269,7 +269,6 @@ async function stopOwnedRecord(record: LaunchRecord): Promise<void> {
 
 export async function restartApp(paths: RunPaths, profile?: TestProfile): Promise<AppRecord> {
   const current = readAppRecord(paths)
-  await stopOwnedApp(paths)
   return launchApp(paths, {
     mode: current.mode,
     platform: current.platform,

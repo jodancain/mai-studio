@@ -1,4 +1,5 @@
 import { caseDefinition } from '../../../scripts/e2e/regression/cases'
+import { readRun } from '../../../scripts/e2e/regression/state'
 import { createAgent, runAgentFileTask, selectAgentWorkspace, startNewAgentTask } from './agents'
 import { expect, test } from './fixture'
 import { ensureCustomChatProvider, selectVisibleModel } from './models'
@@ -57,7 +58,8 @@ test(...caseDefinition('A-05'), async ({ app, mainWindow: page }) => {
 
 test(...caseDefinition('A-01'), async ({ app, mainWindow: page }) => {
   test.setTimeout(10 * 60_000)
-  const modelName = await ensureAgentModel(app, page)
+  const isMaiCore = readRun(app.paths.runState).metadata.task === 'mai-core'
+  const modelName = isMaiCore ? 'claude-sonnet-5' : await ensureAgentModel(app, page)
   await startNewAgentTask(page, 'Cherry Assistant')
 
   const agentView = page.locator('[data-ui="agent.view"]:visible').first()
@@ -67,7 +69,7 @@ test(...caseDefinition('A-01'), async ({ app, mainWindow: page }) => {
     .first()
   await expect(model).toBeVisible()
   await model.click()
-  await selectVisibleModel(page, modelName)
+  await selectVisibleModel(page, modelName, isMaiCore ? 'mai' : undefined)
   await selectAgentWorkspace(app, page)
 
   const composer = page.locator('[data-ui~="chat.composer"]:visible [contenteditable="true"]').first()

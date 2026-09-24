@@ -15,14 +15,17 @@ on:
         type: choice
         options:
           - all
+          - mai-core
           - startup-smoke
           - mini-app
           - notes
           - custom-provider-chat
           - custom-assistant
+          - mai-default-chat
           - translation
           - quick-assistant
           - knowledge
+          - mai-local-knowledge
           - everything-mcp
           - skill-import
           - code-cli
@@ -172,6 +175,13 @@ jobs:
       - name: Initialize isolated test directory
         shell: bash
         env:
+          CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL }}
+          CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL }}
+          CHERRY_TEST_CUSTOM_PROVIDER_API_KEY: ${{ secrets.CHERRY_TEST_CUSTOM_PROVIDER_API_KEY }}
+          CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL }}
+          CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_BASE_URL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_BASE_URL }}
+          CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_API_KEY: ${{ secrets.CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_API_KEY }}
+          CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_MODEL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_MODEL }}
           TEST_MODE: ${{ needs.resolve.outputs.mode }}
           TEST_REF_NAME: ${{ needs.resolve.outputs.name }}
           TEST_SHA: ${{ needs.resolve.outputs.sha }}
@@ -190,6 +200,7 @@ jobs:
       - name: Validate test configuration
         shell: bash
         env:
+          TEST_TASK: ${{ needs.resolve.outputs.task }}
           CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL }}
           CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL: ${{ vars.CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL }}
           CHERRY_TEST_CUSTOM_PROVIDER_API_KEY: ${{ secrets.CHERRY_TEST_CUSTOM_PROVIDER_API_KEY }}
@@ -201,7 +212,7 @@ jobs:
           CHERRY_TEST_CHERRYIN_IMAGE_MODEL: ${{ vars.CHERRY_TEST_CHERRYIN_IMAGE_MODEL }}
           CHERRY_TEST_CHERRYIN_ACCOUNT: ${{ secrets.CHERRY_TEST_CHERRYIN_ACCOUNT }}
           CHERRY_TEST_CHERRYIN_PASSWORD: ${{ secrets.CHERRY_TEST_CHERRYIN_PASSWORD }}
-        run: pnpm exec tsx scripts/e2e/regression/cli.ts preflight
+        run: pnpm exec tsx scripts/e2e/regression/cli.ts preflight --task "$TEST_TASK"
 
       - name: Install application dependencies
         if: needs.resolve.outputs.mode == 'branch'

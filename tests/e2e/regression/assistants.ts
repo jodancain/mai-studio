@@ -10,10 +10,16 @@ export function customAssistantName(app: RegressionApp): string {
   return app.resourceName('Cherry Regression Assistant 31415')
 }
 
-export async function ensureCustomAssistant(app: RegressionApp, page: Page): Promise<void> {
+export async function ensureCustomAssistant(
+  app: RegressionApp,
+  page: Page,
+  model?: { id: string; providerId: string }
+): Promise<void> {
   const name = customAssistantName(app)
-  await ensureCustomChatProvider(app, page)
-  await closeSettings(page)
+  if (!model) {
+    await ensureCustomChatProvider(app, page)
+    await closeSettings(page)
+  }
   await selectSidebarApp(page, 'Chat')
   const chatView = page.locator('[data-ui="chat.view"]:visible').first()
   const assistant = chatView.getByText(name, { exact: true }).first()
@@ -26,7 +32,7 @@ export async function ensureCustomAssistant(app: RegressionApp, page: Page): Pro
     await page.locator('[aria-label="Choose avatar"]').click()
     await page.locator('button[aria-label="star-struck"]').first().click()
     await page.locator('[aria-label="Model"]').click()
-    await selectVisibleModel(page, app.config.customProvider.chatModel)
+    await selectVisibleModel(page, model?.id ?? app.config.customProvider.chatModel, model?.providerId)
     await page.getByRole('button', { name: 'Next', exact: true }).click()
     await page
       .getByRole('dialog')

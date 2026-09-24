@@ -1,7 +1,16 @@
+import { join } from 'node:path'
+
 import { caseDefinition } from '../../../scripts/e2e/regression/cases'
+import { AbsoluteFilePathSchema } from '../../../src/shared/types/file'
 import { customAssistantName, ensureCustomAssistant } from './assistants'
 import { expect, test } from './fixture'
 import { EMBEDDING_PROVIDER, ensureEmbeddingProvider, ensureKnowledgeBase, knowledgeName } from './knowledge'
+import {
+  findLocalKnowledgeBase,
+  queryLocalKnowledgeWithMai,
+  requestKnowledgeRuntime,
+  verifyKnowledgeSource
+} from './localKnowledge'
 import { dismissOnboarding, selectSidebarApp } from './navigation'
 import { closeSettings } from './settings'
 
@@ -71,5 +80,61 @@ test(...caseDefinition('K-01'), async ({ app, mainWindow }) => {
     await expect(marker).toBeVisible()
     await expect(page.locator('body')).toContainText('ground-truth.txt')
     await expect(page.getByText(/\d+ citations?/i)).toBeVisible()
+  })
+})
+
+test(...caseDefinition('MAI-K01'), async ({ app, mainWindow }) => {
+  test.setTimeout(20 * 60_000)
+  let page = mainWindow
+  await test.step('Download the real local Qwen3 model and verify readiness', async () => {
+    const status = await requestKnowledgeRuntime(page, 'local_model.get_status', { id: 'qwen3-embedding-0.6b' })
+    test.skip(status.status === 'unsupported', 'Local Qwen3 inference is unsupported on this platform')
+    const download = await requestKnowledgeRuntime(page, 'local_model.download', { id: 'qwen3-embedding-0.6b' })
+    expect(download.result).toBe('ready')
+    expect(await requestKnowledgeRuntime(page, 'local_model.get_status', { id: 'qwen3-embedding-0.6b' })).toEqual({
+      status: 'ready'
+    })
+  })
+
+  const keywordBase = await test.step('Import a real source into a keyword-only base', async () => {
+    const base = await requestKnowledgeRuntime(page, 'knowledge.create_base', {
+      base: { name: app.resourceName('Mai Keyword Knowledge') }
+    })
+    expect(base.embeddingModelId).toBeNull()
+    expect(base.dimensions).toBeNull()
+    const source = AbsoluteFilePathSchema.parse(join(app.paths.fixtures, 'knowledge', 'ground-truth.txt'))
+    expect(
+      await requestKnowledgeRuntime(page, 'knowledge.add_items', {
+        baseId: base.id,
+        items: [{ type: 'file', data: { path: source, source } }]
+      })
+    ).toEqual({ status: 'added' })
+    return base
+  })
+  const keyword = await verifyKnowledgeSource(app, page, keywordBase.id)
+
+  await test.step('Create the local vector base and import fixtures through the UI', async () => {
+    await ensureKnowledgeBase(app, page, { model: 'qwen3-embedding-0.6b', providerId: 'local-embedding' })
+  })
+  const vectorBase = await findLocalKnowledgeBase(app, page)
+  const vector = await verifyKnowledgeSource(app, page, vectorBase.id)
+
+  await test.step('Restart and verify both persisted indexes and source references', async () => {
+    page = await app.restart('authenticated')
+    await dismissOnboarding(page)
+    await selectSidebarApp(page, 'Knowledge Base')
+    await expect(
+      page.locator('[data-ui="knowledge.navigation"]').getByText(knowledgeName(app), { exact: true })
+    ).toBeVisible()
+    expect((await findLocalKnowledgeBase(app, page)).id).toBe(vectorBase.id)
+    expect(await verifyKnowledgeSource(app, page, keywordBase.id)).toEqual(keyword)
+    expect(await verifyKnowledgeSource(app, page, vectorBase.id)).toEqual(vector)
+  })
+
+  const messageId = await test.step('Ask Mai about the persisted source and verify its citation', () =>
+    queryLocalKnowledgeWithMai(app, page))
+  await test.info().attach('local-knowledge-evidence.json', {
+    body: JSON.stringify({ keyword, vector, messageId, modelId: 'mai::claude-sonnet-5' }, null, 2),
+    contentType: 'application/json'
   })
 })

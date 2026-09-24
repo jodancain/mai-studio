@@ -8,6 +8,7 @@ import { loadTestConfig, type RegressionTestConfig } from '../../../scripts/e2e/
 import { prepareWindowsCdpConnection } from '../../../scripts/e2e/regression/debugBridge'
 import { ensureProfile, readAppRecord, restartApp, type AppRecord } from '../../../scripts/e2e/regression/lifecycle'
 import { getRunPaths, type RunPaths } from '../../../scripts/e2e/regression/paths'
+import { readRun } from '../../../scripts/e2e/regression/state'
 import type { TestProfile } from '../../../scripts/e2e/regression/types'
 import { dismissTransientDialogs } from './navigation'
 
@@ -36,7 +37,10 @@ export class RegressionApp {
   }
 
   get config(): RegressionTestConfig {
-    return loadTestConfig()
+    return loadTestConfig(
+      process.env,
+      !['mai-core', 'mai-default-chat', 'mai-local-knowledge'].includes(readRun(this.paths.runState).metadata.task)
+    )
   }
 
   get record(): AppRecord {
@@ -81,7 +85,7 @@ export class RegressionApp {
       }
       await new Promise((resolvePromise) => setTimeout(resolvePromise, 500))
     } while (Date.now() < deadline)
-    throw new Error('Cherry Studio main window was not ready within 60 seconds')
+    throw new Error('mai studio main window was not ready within 60 seconds')
   }
 
   async window(pathFragment: string): Promise<Page> {

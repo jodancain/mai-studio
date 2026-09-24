@@ -12,7 +12,7 @@ const MAIN_WINDOW_PATH = '/windows/main/index.html'
 
 async function ownedMainInspectorUrl(record: AppRecord): Promise<string> {
   if (findListeningPid(record.platform, MAIN_INSPECTOR_PORT) !== record.electronPid) {
-    throw new Error('Owned Cherry Studio instance does not own the main-process inspector')
+    throw new Error('Owned mai studio instance does not own the main-process inspector')
   }
 
   const response = await fetch(`http://127.0.0.1:${MAIN_INSPECTOR_PORT}/json/list`, {
@@ -36,7 +36,7 @@ async function ownedMainInspectorUrl(record: AppRecord): Promise<string> {
 
 export async function prepareWindowsCdpConnection(record: AppRecord): Promise<void> {
   if (record.platform !== 'windows') return
-  if (!isAlive(record.electronPid)) throw new Error('Owned Cherry Studio instance is not running')
+  if (!isAlive(record.electronPid)) throw new Error('Owned mai studio instance is not running')
   assertOwnedProcess(record, record.electronPid, 'electron')
   const debuggerUrl = await ownedMainInspectorUrl(record)
   const destroyed = await evaluateCdpExpression<number>(
@@ -82,7 +82,7 @@ export async function captureCherryInAuthorizationUrl(
   record: AppRecord,
   authorize: () => Promise<void>
 ): Promise<string> {
-  if (!isAlive(record.electronPid)) throw new Error('Owned Cherry Studio instance is not running')
+  if (!isAlive(record.electronPid)) throw new Error('Owned mai studio instance is not running')
   assertOwnedProcess(record, record.electronPid, 'electron')
   const debuggerUrl = await ownedMainInspectorUrl(record)
   try {
@@ -141,13 +141,13 @@ export async function sendCherryInCallbackToOwnedApp(record: AppRecord, callback
     throw new Error('CherryIN OAuth returned an invalid application callback')
   assertOwnedProcess(record, record.electronPid, 'electron')
   if (findListeningPid(record.platform, Number(url.port)) !== record.electronPid) {
-    throw new Error('Owned Cherry Studio instance does not own the OAuth callback listener')
+    throw new Error('Owned mai studio instance does not own the OAuth callback listener')
   }
   try {
     const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(15_000) })
     if (!response.ok) throw new Error('Callback rejected')
     await response.body?.cancel()
   } catch {
-    throw new Error('Failed to deliver the OAuth callback to the owned Cherry Studio instance')
+    throw new Error('Failed to deliver the OAuth callback to the owned mai studio instance')
   }
 }

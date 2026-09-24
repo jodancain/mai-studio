@@ -55,7 +55,11 @@ export async function ensureEmbeddingProvider(app: RegressionApp, page: Page): P
   await expect(page.getByText(model, { exact: true })).toBeVisible()
 }
 
-export async function ensureKnowledgeBase(app: RegressionApp, page: Page): Promise<void> {
+export async function ensureKnowledgeBase(
+  app: RegressionApp,
+  page: Page,
+  embedding?: { model: string; providerId: string }
+): Promise<void> {
   const name = knowledgeName(app)
   await selectSidebarApp(page, 'Knowledge Base')
   const navigation = page.locator('[data-ui="knowledge.navigation"]')
@@ -72,7 +76,11 @@ export async function ensureKnowledgeBase(app: RegressionApp, page: Page): Promi
       const dialog = page.getByRole('dialog', { name: 'New Knowledge Base' })
       await page.getByRole('textbox', { name: 'Name', exact: true }).fill(name)
       await page.getByRole('button', { name: 'Embedding Model', exact: true }).click()
-      await selectVisibleModel(page, app.config.customEmbeddingProvider.model)
+      await selectVisibleModel(
+        page,
+        embedding?.model ?? app.config.customEmbeddingProvider.model,
+        embedding?.providerId
+      )
       await page.getByRole('button', { name: 'Create', exact: true }).click()
       await expect(dialog).toBeHidden({ timeout: 2 * 60_000 })
       await expect(selectedBase).toBeVisible()

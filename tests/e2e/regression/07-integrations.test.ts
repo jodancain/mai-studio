@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 
 import { caseDefinition } from '../../../scripts/e2e/regression/cases'
+import { readRun } from '../../../scripts/e2e/regression/state'
 import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomation'
 import type { Message } from '../../../src/shared/data/types/message'
 import { startNewAgentTask } from './agents'
@@ -46,7 +47,9 @@ test(...caseDefinition('MCP-01'), async ({ app, mainWindow: page }) => {
     await page.getByRole('button', { name: 'Add', exact: true }).click()
   }
   await page
-    .getByText(/everything STDIO|everything/, { exact: true })
+    .locator('[data-ui="settings.content"]:visible')
+    .getByText('everything', { exact: true })
+    .and(page.locator(':visible'))
     .first()
     .click()
   const enabled = page.getByRole('switch').first()
@@ -114,7 +117,9 @@ test(...caseDefinition('MCP-01'), async ({ app, mainWindow: page }) => {
   await dismissOnboarding(page)
   await openSettingsSection(page, 'MCP')
   await page
-    .getByText(/everything STDIO|everything/, { exact: true })
+    .locator('[data-ui="settings.content"]:visible')
+    .getByText('everything', { exact: true })
+    .and(page.locator(':visible'))
     .first()
     .click()
   const restartedEnabled = page.getByRole('switch').first()
@@ -123,11 +128,12 @@ test(...caseDefinition('MCP-01'), async ({ app, mainWindow: page }) => {
 })
 
 test(...caseDefinition('A-02'), async ({ app, mainWindow: page }) => {
-  await ensureCustomChatProvider(app, page)
+  const isMaiCore = readRun(app.paths.runState).metadata.task === 'mai-core'
+  if (!isMaiCore) await ensureCustomChatProvider(app, page)
   await openSettingsSection(page, 'Skills')
   if (
     !(await page
-      .getByText('cherry-regression-fixture', { exact: true })
+      .getByRole('heading', { name: 'cherry-regression-fixture', exact: true })
       .isVisible()
       .catch(() => false))
   ) {
@@ -136,7 +142,9 @@ test(...caseDefinition('A-02'), async ({ app, mainWindow: page }) => {
     await page.getByRole('button', { name: 'Install from directory', exact: true }).click()
     await page.waitForTimeout(1_000)
     chooseNativeFile(app.record.platform, app.paths, join(app.paths.fixtures, 'cherry-regression-fixture'))
-    await expect(page.getByText('cherry-regression-fixture', { exact: true })).toBeVisible({ timeout: 60_000 })
+    await expect(page.getByRole('heading', { name: 'cherry-regression-fixture', exact: true })).toBeVisible({
+      timeout: 60_000
+    })
   }
 
   page = await app.restart('authenticated')
@@ -155,7 +163,11 @@ test(...caseDefinition('A-02'), async ({ app, mainWindow: page }) => {
     .or(agentView.locator('button:has(span[title*=" | "])'))
     .first()
     .click()
-  await selectVisibleModel(page, app.config.customProvider.chatModel)
+  await selectVisibleModel(
+    page,
+    isMaiCore ? 'claude-sonnet-5' : app.config.customProvider.chatModel,
+    isMaiCore ? 'mai' : undefined
+  )
   await openSkillsPanel(page)
   await page.getByText('Manage skills', { exact: true }).click()
   const skillSwitch = page.getByRole('switch', { name: 'cherry-regression-fixture', exact: true })

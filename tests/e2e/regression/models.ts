@@ -6,15 +6,17 @@ import { closeOpenSettingsDrawer, openSettingsSection } from './settings'
 
 export const CUSTOM_CHAT_PROVIDER = 'Cherry Regression Provider'
 
-export async function selectVisibleModel(page: Page, model: string): Promise<void> {
+export async function selectVisibleModel(page: Page, model: string, providerId?: string): Promise<void> {
   const selector = page.locator('[data-testid="model-selector-content"]:visible').last()
   await expect(selector).toBeVisible()
   const modelName = model.split('/').at(-1) ?? model
   const search = selector.getByTestId('model-selector-search')
   await search.fill(modelName)
-  const option = selector
-    .locator(`[role="option"][data-testid$="::${model}"], [role="option"][data-testid$="::${modelName}"]`)
-    .first()
+  const option = providerId
+    ? selector.getByTestId(`model-selector-item-${providerId}::${model}`).first()
+    : selector
+        .locator(`[role="option"][data-testid$="::${model}"], [role="option"][data-testid$="::${modelName}"]`)
+        .first()
   await expect(option).toBeVisible()
   await option.click()
 }

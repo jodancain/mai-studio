@@ -28,6 +28,19 @@ base, verify recall, restart the application, then query the persisted base and
 verify the answer and citations. It imports the fixtures only once. The former
 `knowledge-import` and `knowledge-qa` task IDs are replaced by `knowledge`.
 
+`mai-local-knowledge` (`MAI-K01`) covers the Mai core knowledge scope without
+external embedding credentials. It downloads Qwen3 through `local_model.download`
+and verifies readiness, creates a `local-embedding::qwen3-embedding-0.6b` base
+through the UI, imports the fixture folder, and verifies indexing and hybrid retrieval.
+A separate keyword-only base imports the real source through Knowledge IPC.
+Both paths verify the stored source bytes and cited chunk before and after a
+restart; a case-owned assistant using `mai::claude-sonnet-5` then answers from
+the persisted vector base with a visible citation. Runtime evidence is attached
+to the report. Public Knowledge search uses hybrid ranking for embedding bases;
+this case does not independently assert pure-vector ranking. The external `K-01`
+still blocks when its provider credentials are absent; it remains selected by
+`all` and `knowledge`.
+
 ## Adding or selecting a case
 
 1. Add the case to `scripts/e2e/regression/cases.ts`, including its phase, task, and required capabilities.
@@ -36,6 +49,23 @@ verify the answer and citations. It imports the fixtures only once. The former
 4. Run manifest tests, typechecking, and Playwright enumeration. Add a workflow step only when introducing a new phase.
 
 Use the task IDs from the manifest in the workflow's `task` input (`all` selects every case). Within an initialized run, execute a phase through the same controller as CI:
+
+For the Mai internal macOS ARM64 candidate, `mai-core` selects the supported
+core cases; `mai-default-chat` exercises the bundled default assistant and
+Stop. The default-model case uses the clean profile, separate from custom-model
+and custom-assistant scenarios on the authenticated profile. It asserts the
+initial chat-default preference, Chat assistant, and builtin Agent model without
+changing them, explicitly selects the Chat assistant, and verifies the model
+recorded on its actual answer and paused response. After restarting the same
+clean profile, all three default bindings and both message states must persist.
+Use a new run directory for a first-install baseline: switching to `clean` in an
+existing run reuses that profile rather than deleting it.
+
+In `mai-core`, `A-01` and `A-02` select the exact `mai::claude-sonnet-5`
+model through the bundled Anthropic path. Other tasks retain their custom
+provider selection. The optional custom Agent OpenAI bridge returned HTTP 400
+and remains outside this release's accepted scope; ordinary custom-provider
+chat is still covered by `M-02` and `C-01`.
 
 ```sh
 pnpm exec tsx scripts/e2e/regression/cli.ts run-phase \

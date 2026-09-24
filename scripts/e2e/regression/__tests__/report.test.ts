@@ -48,7 +48,7 @@ describe('regression report gate', () => {
     )
 
     const markdown = renderMarkdown(run)
-    expect(markdown).toContain('# Cherry Studio End-to-End Regression Report')
+    expect(markdown).toContain('# mai studio End-to-End Regression Report')
     expect(markdown).toContain('> **Overall verdict: ⛔ Development tests blocked**')
     expect(markdown).toContain(
       '| M-01 | Sign in to CherryIN and chat | ⛔ Blocked | Task did not finish before the final report | 0 |'

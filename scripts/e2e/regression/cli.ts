@@ -111,7 +111,10 @@ async function initializeCommand(): Promise<void> {
 }
 
 async function preflightCommand(): Promise<void> {
-  const config = loadTestConfig()
+  const config = loadTestConfig(
+    process.env,
+    !['mai-core', 'mai-default-chat', 'mai-local-knowledge'].includes(argument('task', false) ?? 'all')
+  )
   const redacted = createRedactor(getSensitiveConfigValues(config))
   process.stdout.write(`${JSON.stringify(redacted({ configured: REQUIRED_CONFIG }), null, 2)}\n`)
 }

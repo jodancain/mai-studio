@@ -42,6 +42,27 @@ Test names and generated report text use English. External errors and captured a
 Capability requirements belong to cases. Missing required capabilities skip execution with an explicit reason and are recorded as blocked, never passed.
 Capability probes are preflight checks, not evidence that a product interaction succeeded.
 
+## Mai internal core candidate
+
+The `mai-core` task selects startup, bundled ezr chat/Stop, custom provider and
+assistant, local keyword/Qwen3 knowledge, MCP, Skill import, and the Agent file task. It is the
+macOS ARM64 internal candidate scope; it does not certify other platforms or
+the disabled non-core features. `mai-default-chat` selects only the bundled
+default assistant case. `mai-local-knowledge` selects `MAI-K01`, which downloads
+the local model, imports real fixtures, checks source/chunk readback across a
+restart, and asks the bundled Mai model for an answer with citations. `mai-core`
+selects this local case instead of the external embedding case `K-01`.
+
+Core runs do not require CherryIN/image or external embedding credentials.
+Missing custom chat configuration blocks its affected core cases. The external
+`knowledge` task and `K-01` in `all` retain their embedding-provider capability
+gate. Pass the same `--task` to `initialize` and `preflight`, and provide the
+provider environment during initialization so its capability snapshot is valid.
+Use an isolated run directory and the driver-owned installer/profile lifecycle.
+Signing, notarization, backup recovery, and the agreed performance/soak gates
+remain separate release evidence; a successful core Playwright verdict alone
+does not constitute formal distribution approval.
+
 ## Combined report
 
 The aggregate job publishes `test-report`. Download and extract

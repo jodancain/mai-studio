@@ -1,6 +1,27 @@
-import { completeE2eCase, createRun, finalizeRun, getRunVerdict } from '../state'
+import { beginCase, completeE2eCase, createRun, finalizeRun, getRunVerdict } from '../state'
 
 describe('Playwright run state', () => {
+  it('admits the core cases while leaving unrelated features unselected', () => {
+    const run = createRun({
+      appVersion: 'development',
+      commitSha: 'sha',
+      mode: 'branch',
+      platform: 'macos',
+      ref: 'main',
+      runner: 'macos-latest',
+      task: 'mai-core'
+    })
+    const selectedIds = Object.values(run.cases)
+      .filter(({ status }) => status === 'pending')
+      .map(({ id }) => id)
+    expect(selectedIds).toEqual(['S-01', 'M-02', 'C-01', 'MAI-01', 'MAI-K01', 'MCP-01', 'A-02', 'A-01'])
+    expect(run.cases['K-01'].status).toBe('not_applicable')
+    expect(beginCase(run, 'MAI-01').cases['MAI-01'].status).toBe('running')
+    expect(completeE2eCase(run, 'MAI-01', 'passed', 'Bundled provider answered').cases['MAI-01'].status).toBe('passed')
+    expect(run.cases['M-01'].status).toBe('not_applicable')
+    expect(run.phases).not.toHaveProperty('09-cherryin-and-images')
+  })
+
   it('accepts English summaries but rejects empty results', () => {
     const run = createRun({
       appVersion: '2.0.8',

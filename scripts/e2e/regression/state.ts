@@ -4,25 +4,23 @@ import { REGRESSION_CASES, selectCases } from './cases'
 import type { CapabilityResult, CaseStatus, RegressionRun, RunMetadata, RunVerdict } from './types'
 
 export function createRun(metadata: RunMetadata): RegressionRun {
+  const selectedCases = selectCases(metadata.task)
+  const selectedIds = new Set(selectedCases.map(({ id }) => id))
   return {
     schemaVersion: 2,
     metadata,
     startedAt: new Date().toISOString(),
     capabilities: {},
     phases: Object.fromEntries(
-      [...new Set(selectCases(metadata.task).map(({ phase }) => phase))].map((phase) => [
-        phase,
-        { status: 'pending', errors: [] }
-      ])
+      [...new Set(selectedCases.map(({ phase }) => phase))].map((phase) => [phase, { status: 'pending', errors: [] }])
     ),
     cases: Object.fromEntries(
       REGRESSION_CASES.map((testCase) => [
         testCase.id,
         {
           id: testCase.id,
-          status: metadata.task === 'all' || testCase.task === metadata.task ? 'pending' : 'not_applicable',
-          summary:
-            metadata.task !== 'all' && testCase.task !== metadata.task ? `Not selected by task ${metadata.task}` : ''
+          status: selectedIds.has(testCase.id) ? 'pending' : 'not_applicable',
+          summary: selectedIds.has(testCase.id) ? '' : `Not selected by task ${metadata.task}`
         }
       ])
     )

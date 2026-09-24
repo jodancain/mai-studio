@@ -129,7 +129,7 @@ export function renderMarkdown(run: RegressionRun): string {
   const availableCapabilities = capabilities.filter(([, result]) => result.available).length
 
   return [
-    '# Cherry Studio End-to-End Regression Report',
+    '# mai studio End-to-End Regression Report',
     '',
     `> **Overall verdict: ${VERDICT_LABELS[verdict]}**`,
     '',
@@ -261,7 +261,7 @@ export function renderAggregateMarkdown(report: AggregateReport): string {
       })
   ])
   return [
-    '# Cherry Studio End-to-End Regression Summary',
+    '# mai studio End-to-End Regression Summary',
     '',
     `> **Overall verdict: ${VERDICT_LABELS[report.verdict]}**`,
     '',

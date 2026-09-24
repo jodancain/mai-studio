@@ -36,15 +36,16 @@ export interface RegressionTestConfig {
 
 type Environment = Record<string, string | undefined>
 
-export function loadTestConfig(environment: Environment = process.env): RegressionTestConfig {
+export function loadTestConfig(environment: Environment = process.env, requireAll = true): RegressionTestConfig {
   const missing = REQUIRED_CONFIG.filter((name) => !environment[name]?.trim())
-  if (missing.length > 0) {
+  if (requireAll && missing.length > 0) {
     throw new Error(`Missing regression test configuration: ${missing.join(', ')}`)
   }
 
-  const value = (name: RequiredConfigName) => environment[name]!.trim()
+  const value = (name: RequiredConfigName) => environment[name]?.trim() ?? ''
   const absoluteUrl = (name: RequiredConfigName) => {
     const result = value(name)
+    if (!requireAll && !result) return ''
     try {
       new URL(result)
       return result

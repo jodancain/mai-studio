@@ -4,17 +4,24 @@ export const REGRESSION_CASES = [
   { id: 'N-01', capabilities: [], phase: '02-basic-features', title: 'Create and save a note', task: 'notes' },
   {
     id: 'M-02',
-    capabilities: [],
+    capabilities: ['customChatProvider'],
     phase: '03-models-and-assistants',
     title: 'Configure a custom chat provider and send a message',
     task: 'custom-provider-chat'
   },
   {
     id: 'C-01',
-    capabilities: [],
+    capabilities: ['customChatProvider'],
     phase: '03-models-and-assistants',
     title: 'Create a custom assistant and chat',
     task: 'custom-assistant'
+  },
+  {
+    id: 'MAI-01',
+    capabilities: [],
+    phase: '03-models-and-assistants',
+    title: 'Bundled ezr chat and stop',
+    task: 'mai-default-chat'
   },
   { id: 'T-01', capabilities: [], phase: '04-translation', title: 'Translate text', task: 'translation' },
   {
@@ -33,21 +40,28 @@ export const REGRESSION_CASES = [
   },
   {
     id: 'K-01',
-    capabilities: ['desktopAutomation'],
+    capabilities: ['customChatProvider', 'embeddingProvider', 'desktopAutomation'],
     phase: '06-knowledge',
     title: 'Create a knowledge base, verify persistence, and answer with citations',
     task: 'knowledge'
   },
   {
+    id: 'MAI-K01',
+    capabilities: ['desktopAutomation'],
+    phase: '06-knowledge',
+    title: 'Local keyword and Qwen3 knowledge retrieval, citations, and persistence',
+    task: 'mai-local-knowledge'
+  },
+  {
     id: 'MCP-01',
-    capabilities: ['npx'],
+    capabilities: ['customChatProvider', 'npx'],
     phase: '07-integrations',
     title: 'Create and use Everything MCP',
     task: 'everything-mcp'
   },
   {
     id: 'A-02',
-    capabilities: ['desktopAutomation'],
+    capabilities: ['customChatProvider', 'desktopAutomation'],
     phase: '07-integrations',
     title: 'Import a Skill from a folder and verify it works',
     task: 'skill-import'
@@ -104,7 +118,7 @@ export const REGRESSION_CASES = [
   },
   {
     id: 'A-01',
-    capabilities: ['desktopAutomation'],
+    capabilities: ['customChatProvider', 'desktopAutomation'],
     phase: '10-agent-runtimes',
     title: 'Complete a basic file task with the default Agent',
     task: 'agent-basic-task'
@@ -115,10 +129,10 @@ export type RegressionCase = (typeof REGRESSION_CASES)[number]
 export type CaseId = RegressionCase['id']
 export type TaskId = RegressionCase['task']
 export type PhaseId = RegressionCase['phase']
-export type TaskSelection = 'all' | TaskId
+export type TaskSelection = 'all' | 'mai-core' | TaskId
 
 export const TASK_IDS = [...new Set(REGRESSION_CASES.map(({ task }) => task))]
-export const TASK_SELECTIONS = ['all', ...TASK_IDS] as const
+export const TASK_SELECTIONS = ['all', 'mai-core', ...TASK_IDS] as const
 export const PHASE_IDS = [...new Set(REGRESSION_CASES.map(({ phase }) => phase))]
 
 export function getCase(id: string): RegressionCase {
@@ -127,9 +141,13 @@ export function getCase(id: string): RegressionCase {
   return testCase
 }
 
+const MAI_CORE_CASES: readonly CaseId[] = ['S-01', 'MAI-01', 'M-02', 'C-01', 'MAI-K01', 'MCP-01', 'A-02', 'A-01']
+
 export function selectCases(task: TaskSelection, phase?: PhaseId): RegressionCase[] {
   return REGRESSION_CASES.filter(
-    (testCase) => (task === 'all' || testCase.task === task) && (!phase || testCase.phase === phase)
+    (testCase) =>
+      (task === 'all' || (task === 'mai-core' ? MAI_CORE_CASES.includes(testCase.id) : testCase.task === task)) &&
+      (!phase || testCase.phase === phase)
   )
 }
 
@@ -137,7 +155,10 @@ export function caseDefinition(id: CaseId) {
   const testCase = getCase(id)
   return [
     `[${id}] ${testCase.title}`,
-    { tag: `@${testCase.task}`, annotation: { type: 'regression-case', description: id } }
+    {
+      tag: [`@${testCase.task}`, ...(MAI_CORE_CASES.includes(testCase.id) ? ['@mai-core'] : [])] as string[],
+      annotation: { type: 'regression-case', description: id }
+    }
   ] as const
 }
 

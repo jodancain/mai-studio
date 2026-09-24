@@ -10,6 +10,28 @@ import { parse } from 'yaml'
 import { getCase, missingCapabilities, PHASE_IDS, REGRESSION_CASES, selectCases, TASK_SELECTIONS } from '../cases'
 
 describe('regression execution plan', () => {
+  it('probes provider capabilities with the execution credentials and preserves task selection in preflight', () => {
+    const workflow = parse(readFileSync(resolve('.github/workflows/e2e-regression-test.yml'), 'utf8'))
+    const steps = workflow.jobs.test.steps
+    const initialize = steps.find((step: { name: string }) => step.name === 'Initialize isolated test directory')
+    const preflight = steps.find((step: { name: string }) => step.name === 'Validate test configuration')
+    const execution = steps.find((step: { name: string }) => step.name === 'Prepare end-to-end test configuration')
+    for (const name of [
+      'CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_API_KEY',
+      'CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_API_KEY',
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_MODEL'
+    ]) {
+      expect(initialize.env[name]).toBeTruthy()
+      expect(initialize.env[name]).toBe(execution.env[name])
+    }
+    expect(preflight.env.TEST_TASK).toBe('${{ needs.resolve.outputs.task }}')
+    expect(preflight.run).toContain('--task "$TEST_TASK"')
+  })
+
   it('offers every supported task in the workflow dropdown with full regression as the default', () => {
     const workflow = parse(readFileSync(resolve('.github/workflows/e2e-regression-test.yml'), 'utf8'))
     const task = workflow.on.workflow_dispatch.inputs.task
@@ -72,6 +94,16 @@ describe('regression execution plan', () => {
     expect(selectCases('notes', '03-models-and-assistants')).toEqual([])
     expect(selectCases('notes', '02-basic-features').map(({ id }) => id)).toEqual(['N-01'])
     expect(() => getCase('missing')).toThrow('Unknown regression case')
+  })
+
+  it('uses local knowledge in the core scope while retaining the external provider gate', () => {
+    expect(selectCases('mai-core', '06-knowledge').map(({ id }) => id)).toEqual(['MAI-K01'])
+    expect(selectCases('mai-local-knowledge').map(({ id }) => id)).toEqual(['MAI-K01'])
+    expect(selectCases('knowledge').map(({ id }) => id)).toEqual(['K-01'])
+    expect(selectCases('all', '06-knowledge').map(({ id }) => id)).toEqual(['K-01', 'MAI-K01'])
+    const capabilities = { desktopAutomation: { available: true } }
+    expect(missingCapabilities('MAI-K01', capabilities)).toEqual([])
+    expect(missingCapabilities('K-01', capabilities)).toEqual(['customChatProvider', 'embeddingProvider'])
   })
 
   it('keeps each manifest phase executable by the workflow', () => {

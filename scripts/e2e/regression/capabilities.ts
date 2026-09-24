@@ -87,7 +87,27 @@ export function probeCapabilities(platform: Platform, paths: RunPaths): Record<s
     "require.resolve('ws'); process.stdout.write('Direct CDP connection available')"
   ])
 
+  const configured = (names: string[]): CapabilityResult => {
+    const missing = names.filter((name) => !process.env[name]?.trim())
+    return {
+      available: missing.length === 0,
+      detail: missing.length
+        ? `Missing configuration: ${missing.join(', ')}`
+        : 'Required provider configuration is present'
+    }
+  }
   return {
+    customChatProvider: configured([
+      'CHERRY_TEST_CUSTOM_PROVIDER_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_ANTHROPIC_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_API_KEY',
+      'CHERRY_TEST_CUSTOM_PROVIDER_CHAT_MODEL'
+    ]),
+    embeddingProvider: configured([
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_BASE_URL',
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_API_KEY',
+      'CHERRY_TEST_CUSTOM_PROVIDER_EMBEDDING_MODEL'
+    ]),
     desktopAutomation,
     externalSelection: {
       available: desktopAutomation.available && screenCapture.available,
