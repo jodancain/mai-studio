@@ -15,7 +15,7 @@ import {
 // Mock electron app
 vi.mock('electron', () => ({
   app: {
-    getName: vi.fn(() => 'Cherry Studio'),
+    getName: vi.fn(() => 'mai studio'),
     getVersion: vi.fn(() => '1.0.0')
   }
 }))
@@ -26,7 +26,7 @@ describe('connection handlers', () => {
       const message = buildHandshakeMessage()
 
       expect(message.type).toBe('handshake')
-      expect(message.deviceName).toBe('Cherry Studio')
+      expect(message.deviceName).toBe('mai studio')
       expect(message.version).toBe(HANDSHAKE_PROTOCOL_VERSION)
       expect(message.appVersion).toBe('1.0.0')
       expect(typeof message.platform).toBe('string')

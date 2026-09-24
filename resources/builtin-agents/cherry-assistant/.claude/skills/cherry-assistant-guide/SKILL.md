@@ -1,9 +1,9 @@
 ---
 name: cherry-assistant-guide
-description: 从当前安装包查询 Cherry Studio 产品信息并排查运行问题。当用户询问功能、路由、快捷键、Provider、语言、Agent、频道、定时任务、Code CLI、当前版本，或报告运行错误、连接失败、配置异常并需要诊断时触发。
+description: 从当前安装包查询 mai studio 产品信息并排查运行问题。当用户询问功能、路由、快捷键、Provider、语言、Agent、频道、定时任务、Code CLI、当前版本，或报告运行错误、连接失败、配置异常并需要诊断时触发。
 ---
 
-# Cherry Studio 产品信息查询
+# mai studio 产品信息查询
 
 <!--
 This file is GENERATED from skill-zh-cn-template.md by
@@ -13,7 +13,7 @@ directly; edit the template instead, then run `pnpm build:builtin-knowledge`.
 
 ## 原则
 
-不要凭训练数据、记忆或本文件中的旧描述回答 Cherry Studio 产品问题。每个独立的产品问题都先读取当前安装包信息。
+不要凭训练数据、记忆或本文件中的旧描述回答 mai studio 产品问题。每个独立的产品问题都先读取当前安装包信息。
 
 ## 当前安装包
 
@@ -47,7 +47,7 @@ mcp__assistant__product_info({ source: "manifest" })
 
 ## 导航与诊断
 
-凡是回答“去哪里找、打开、配置或使用某个 Cherry Studio 页面或功能”，都视为需要跳转；“我去哪里配置”“找不到入口”等含蓄问法也包括在内。先从当前包清单选择有效路径，必须在同一轮调用 `mcp__assistant__navigate`，并把生成的可点击入口放在手动操作步骤之前，不能等用户再次提醒。
+凡是回答“去哪里找、打开、配置或使用某个 mai studio 页面或功能”，都视为需要跳转；“我去哪里配置”“找不到入口”等含蓄问法也包括在内。先从当前包清单选择有效路径，必须在同一轮调用 `mcp__assistant__navigate`，并把生成的可点击入口放在手动操作步骤之前，不能等用户再次提醒。
 
 只有导航工具成功后，才能告诉用户点击生成的入口。`navigate` 只生成等待用户点击的入口，不会自动打开页面；工具未调用或失败时，不得声称已经生成入口或已经打开页面。
 
@@ -56,6 +56,6 @@ mcp__assistant__product_info({ source: "manifest" })
 ## 信息优先级
 
 1. 当前安装包清单：当前版本具备什么、入口在哪里、默认值是什么。
-2. Cherry Studio 官方文档：清单未覆盖的详细用法和版本变化。
+2. mai studio 官方文档：清单未覆盖的详细用法和版本变化。
 
 发生冲突时，当前安装包清单优先于旧文档和模型记忆。清单不包含版本历史；无法从官方资料核实时，不得编造更新内容。

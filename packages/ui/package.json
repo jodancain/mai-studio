@@ -1,7 +1,7 @@
 {
   "name": "@cherrystudio/ui",
   "version": "1.0.0-alpha.1",
-  "description": "Cherry Studio UI Component Library - React Components for Cherry Studio",
+  "description": "mai studio UI Component Library - React Components for mai studio",
   "keywords": [
     "cherry-studio",
     "components",
@@ -15,7 +15,7 @@
     "url": "https://github.com/CherryHQ/cherry-studio/issues"
   },
   "license": "MIT",
-  "author": "Cherry Studio",
+  "author": "mai studio",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CherryHQ/cherry-studio.git"

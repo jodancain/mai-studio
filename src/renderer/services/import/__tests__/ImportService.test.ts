@@ -154,7 +154,7 @@ describe('importService.importConversations', () => {
                 start_timestamp: '2026-01-01T00:00:01.000Z',
                 stop_timestamp: '2026-01-01T00:00:03.000Z'
               },
-              { type: 'tool_use', id: null, name: 'search', input: { query: 'Cherry Studio' } },
+              { type: 'tool_use', id: null, name: 'search', input: { query: 'mai studio' } },
               { type: 'tool_result', tool_use_id: null, content: [{ type: 'text', text: 'Result' }] },
               { type: 'text', text: 'Answer' }
             ],
@@ -180,7 +180,7 @@ describe('importService.importConversations', () => {
         type: 'dynamic-tool',
         toolCallId: 'assistant-1-tool-0',
         toolName: 'search',
-        input: { query: 'Cherry Studio' },
+        input: { query: 'mai studio' },
         state: 'output-available',
         output: 'Result'
       },

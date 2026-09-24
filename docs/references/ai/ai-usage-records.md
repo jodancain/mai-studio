@@ -43,7 +43,7 @@ records + runtimeTiming --> message performance view model
 ```
 
 This is analytics, not an invoice ledger. Writes are best effort and SDK retry
-attempts that are not observable to Cherry Studio are not counted. Provider
+attempts that are not observable to mai studio are not counted. Provider
 invoices remain authoritative.
 
 - Schema: `src/main/data/db/schemas/aiUsageRecord.ts`
@@ -468,7 +468,7 @@ global SWR focus/reconnect revalidation is disabled.
 
 - A crash after a provider succeeds but before the best-effort SQLite insert
   can lose a record.
-- Provider-internal retries invisible to Cherry Studio are not separate calls.
+- Provider-internal retries invisible to mai studio are not separate calls.
 - Direct Agent SDK steps that omit `ttft_ms`, and all legacy rows, have no
   honest per-call latency.
 - Individual provider steps with missing duration are omitted from the

@@ -95,7 +95,7 @@ describe('buildPathRegistry', () => {
     const registry = buildPathRegistry()
 
     expect(registry['feature.mcp.resource_results.temp']).toBe(
-      path.join('/mock/temp', 'CherryStudio', 'mcp-resource-results')
+      path.join('/mock/temp', 'mai studio', 'mcp-resource-results')
     )
   })
 

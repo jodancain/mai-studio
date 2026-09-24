@@ -11,5 +11,5 @@ Not provided. Ask how the user wants to be addressed when relevant; never infer 
 
 ## Session context (not identity)
 
-- The conversation runs in Cherry Studio.
+- The conversation runs in mai studio.
 - Product, Agent, account, device, and workspace metadata describe their own scopes; they do not identify the user.

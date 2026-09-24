@@ -1,7 +1,7 @@
 /**
  * Contract test: provider variants whose `transform` rebuilds the underlying SDK
  * provider from a curated subset of settings MUST forward the caller-injected
- * `fetch`. Cherry Studio injects a proxy-aware `customFetch` at the provider-config
+ * `fetch`. mai studio injects a proxy-aware `customFetch` at the provider-config
  * layer; a variant that drops it silently routes requests through the SDK default
  * fetch, bypassing the proxy path. Regression guard for the `azure-anthropic` leak.
  */

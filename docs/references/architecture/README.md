@@ -9,11 +9,11 @@ sources:
 
 # Architecture Overview
 
-This is the cross-process entry point to Cherry Studio's architecture: the Electron process model, data flow, the data systems, the monorepo structure, and a map to the detailed per-process and per-subsystem references. Per-process directory layout and dependency rules live in their own documents — this page does not duplicate them.
+This is the cross-process entry point to mai studio's architecture: the Electron process model, data flow, the data systems, the monorepo structure, and a map to the detailed per-process and per-subsystem references. Per-process directory layout and dependency rules live in their own documents — this page does not duplicate them.
 
 ## Process Model
 
-Cherry Studio is an Electron app with two app processes (plus preload), each mapping to a `src/` root and its top-level directories:
+mai studio is an Electron app with two app processes (plus preload), each mapping to a `src/` root and its top-level directories:
 
 ```
 ═══ Main Process · Node.js · src/main/ ══════════════════════════════════
@@ -61,7 +61,7 @@ User Input (React UI)
 
 ## Four Data Systems
 
-Cherry Studio uses four data systems, each optimized for different data characteristics:
+mai studio uses four data systems, each optimized for different data characteristics:
 
 | System | Storage | Timing | Use Case |
 |--------|---------|--------|----------|
@@ -128,4 +128,4 @@ Where to go for detail. The three process docs own per-process directory layout 
 | AI subsystem | [AI Reference](../ai/README.md) |
 | Path registry | [paths/README](../../../src/main/core/paths/README.md) |
 
-Cherry Studio runs multiple windows (main window, sub-windows, selection toolbar, …), all managed by `WindowManager` and communicating through IPC and shared state (Cache, Preference); see the [Window Manager Reference](../window-manager/README.md).
+mai studio runs multiple windows (main window, sub-windows, selection toolbar, …), all managed by `WindowManager` and communicating through IPC and shared state (Cache, Preference); see the [Window Manager Reference](../window-manager/README.md).

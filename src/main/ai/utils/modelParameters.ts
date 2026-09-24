@@ -137,7 +137,7 @@ export function getTimeout(model: Model): number {
 
 /**
  * Anthropic Messages providers add the explicit thinking budget on top of
- * `maxOutputTokens`. Cherry Studio's limit is the total generated-token cap,
+ * `maxOutputTokens`. mai studio's limit is the total generated-token cap,
  * so pass the non-thinking remainder to the SDK. Adaptive thinking has no
  * explicit budget and therefore needs no adjustment.
  */

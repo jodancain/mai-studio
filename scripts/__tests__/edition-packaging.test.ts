@@ -92,7 +92,7 @@ describe('edition packaging', () => {
     expect(script).toContain(`--${arch}`)
   })
 
-  it('keeps the existing global product and update identity', () => {
+  it('pins the fork product identity and keeps the upstream update channel', () => {
     const config = parse(readFileSync(path.join(projectRoot, 'electron-builder.yml'), 'utf8'))
 
     expect({
@@ -104,10 +104,12 @@ describe('edition packaging', () => {
       publish: config.publish,
       windowsArtifactName: config.win.artifactName
     }).toEqual({
-      appId: 'com.kangfenmao.CherryStudio',
+      appId: 'com.mai.studio',
       edition: GLOBAL_EDITION,
-      nsisGuid: '41a4ccd8-bcc0-5710-9eee-0e164da68057',
-      productName: 'Cherry Studio',
+      nsisGuid: 'c4b32fff-9616-476b-ad2f-6eae7a2c8a3e',
+      productName: 'mai studio',
+      // The scheme is the internal identifier CHERRY_STUDIO_PROTOCOL, the OAuth redirect URI and
+      // the media protocol all hard-code; only the display name is branded.
       protocol: 'cherrystudio',
       publish: { provider: 'generic', url: 'https://releases.cherry-ai.com' },
       windowsArtifactName: '${productName}-${version}-${arch}-setup.${ext}'
@@ -121,7 +123,7 @@ describe('edition packaging', () => {
 
     expect(config).toEqual({
       extends: './electron-builder.yml',
-      appId: 'com.cherryai.cherrystudio.cn',
+      appId: 'com.mai.studio.cn',
       extraMetadata: {
         cherryEdition: CHINA_EDITION
       },
@@ -135,8 +137,8 @@ describe('edition packaging', () => {
     })
     const chinaPackageMetadata = { ...packageMetadata, ...config.extraMetadata }
 
-    expect(packageMetadata.productName ?? packageMetadata.name).toBe('CherryStudio')
-    expect(chinaPackageMetadata.productName ?? chinaPackageMetadata.name).toBe('CherryStudio')
+    expect(packageMetadata.productName ?? packageMetadata.name).toBe('mai studio')
+    expect(chinaPackageMetadata.productName ?? chinaPackageMetadata.name).toBe('mai studio')
   })
 
   it.each([

@@ -1,5 +1,5 @@
 /**
- * Ambient globals available to a Cherry Studio mini app. Cherry Studio 2.x.
+ * Ambient globals available to a mai studio mini app. mai studio 2.x.
  *
  * Drop this file into your project and reference it from `tsconfig.json`
  * (`"include": ["cherry.d.ts", "src"]`) — nothing to import, `cherry` is a global.

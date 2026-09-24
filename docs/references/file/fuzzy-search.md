@@ -9,7 +9,7 @@ sources:
 
 # Fuzzy Search for Directory Listings
 
-Cherry Studio exposes directory listing and fuzzy search through
+mai studio exposes directory listing and fuzzy search through
 `listDirectory()` and `listDirectoryEntries()` in
 `src/main/services/file/tree/search.ts`. Both functions run in the main process;
 renderers receive flat paths or classified entries without building a filesystem index.

@@ -7,7 +7,7 @@ sources:
 
 # Security Reference
 
-Security invariants for Cherry Studio's main process, which handles renderer-, assistant-, and provider-controlled input. Currently covers the rules for fetching untrusted URLs.
+Security invariants for mai studio's main process, which handles renderer-, assistant-, and provider-controlled input. Currently covers the rules for fetching untrusted URLs.
 
 | Document | Purpose |
 | --- | --- |

@@ -285,19 +285,19 @@ describe('AppService', () => {
 
     it('registers the stable launcher for Windows portable builds', async () => {
       platform.isPortable = true
-      vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\Cherry Studio Portable.exe')
+      vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\mai studio Portable.exe')
 
       await new AppService().setAppLaunchOnBoot(true)
 
       expect(setLoginItemSettingsMock).toHaveBeenCalledWith({
         openAtLogin: true,
-        path: 'D:\\Apps\\Cherry Studio Portable.exe',
+        path: 'D:\\Apps\\mai studio Portable.exe',
         args: []
       })
     })
 
     it('uses Electron defaults for installed Windows builds', async () => {
-      vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\Cherry Studio Portable.exe')
+      vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\mai studio Portable.exe')
 
       await new AppService().setAppLaunchOnBoot(false)
 

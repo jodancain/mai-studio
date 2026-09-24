@@ -32,7 +32,7 @@ export interface AgentCapabilities {
   environment: 'open' | 'sealed'
   /** Read every knowledge base, not just those bound to the Agent or picked in the composer. */
   allKnowledgeBases: boolean
-  /** Tools that act on Cherry Studio itself. Absent for an Agent with no host access. */
+  /** Tools that act on mai studio itself. Absent for an Agent with no host access. */
   hostTools?: {
     /** Omit for the default assistant tool set. */
     tools?: readonly AssistantToolName[]

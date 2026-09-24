@@ -1,3 +1,15 @@
+> ## mai studio
+>
+> A private fork of [Cherry Studio](https://github.com/CherryHQ/cherry-studio) (MIT) rebranded to
+> **mai studio** and wired to the `ezr.sh` gateway as a built-in provider (`mai`), with per-model
+> endpoint pinning for its Claude and Codex lines.
+>
+> - Claude models → Anthropic Messages (`/v1/messages`), with OpenAI Chat Completions as fallback.
+> - Codex models → OpenAI Responses (`/v1/responses`) **only**; the gateway 400s them on chat/completions.
+> - The gateway key is read from `MAIN_VITE_MAI_API_KEY` in `.env` (gitignored) and seeded into the
+>   provider on first launch.
+>
+> Everything below is the upstream README, kept for attribution.
 
 <h1 align="center">
   <a href="https://github.com/CherryHQ/cherry-studio/releases">

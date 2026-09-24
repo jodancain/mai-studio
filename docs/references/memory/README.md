@@ -9,7 +9,7 @@ sources:
 
 # Memory Reference
 
-Cherry Studio provides three memory mechanisms that differ in who they serve,
+mai studio provides three memory mechanisms that differ in who they serve,
 how they persist, and where they are stored: file-based memory for Agents
 (`SOUL.md` / `USER.md` / `FACT.md` / `JOURNAL.jsonl`), the Knowledge Base, and
 the built-in `@cherry/memory` MCP server. The v1 "Global Memory" toggle was

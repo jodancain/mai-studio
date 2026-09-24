@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
@@ -33,8 +34,9 @@ describe('dsh SDK bundling viability', () => {
   })
 
   it('loads the unified sharp stack through attachment-local and decodes a real PNG', async () => {
+    const attachmentEntry = resolveBundledDshRuntimeEntry('@deepseek-ai/dsh-attachment-local')
     const [{ prepareImageFile }, { default: sharp }] = await Promise.all([
-      import(pathToFileURL(resolveBundledDshRuntimeEntry('@deepseek-ai/dsh-attachment-local')).href),
+      import(pathToFileURL(attachmentEntry).href),
       import('sharp')
     ])
     const png = await sharp({
@@ -55,6 +57,6 @@ describe('dsh SDK bundling viability', () => {
       { maxPixels: 1024, maxDimension: 32, maxBytes: 1048576 }
     )
     expect(prepared.ref).toMatchObject({ mediaType: 'image/png', width: 1, height: 1 })
-    expect(sharp.versions.sharp).toBe('0.35.3')
+    expect(createRequire(attachmentEntry).resolve('sharp')).toBe(createRequire(import.meta.url).resolve('sharp'))
   })
 })

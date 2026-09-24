@@ -53,7 +53,7 @@ const mocks = vi.hoisted(() => ({
     'settings.about.diagnostics.upload.errors.save_failed': 'Could not save the diagnostic report',
     'settings.about.diagnostics.upload.manual.title': 'Diagnostic report was not submitted',
     'settings.about.diagnostics.upload.unknown.description':
-      'Could not confirm whether this submission succeeded. Save the diagnostic file locally, then contact the Cherry Studio support team or upload it through the Feishu form via Manual feedback. Retrying may submit the same diagnostic report again.',
+      'Could not confirm whether this submission succeeded. Save the diagnostic file locally, then contact the mai studio support team or upload it through the Feishu form via Manual feedback. Retrying may submit the same diagnostic report again.',
     'settings.about.diagnostics.upload.unknown.title': 'Submission result is unknown'
   } as Record<string, string>
 }))
@@ -518,7 +518,7 @@ describe('DiagnosticUploadPanel', () => {
     expect(await screen.findByText('Submission result is unknown')).toBeInTheDocument()
     expect(
       screen.getByText(
-        'Could not confirm whether this submission succeeded. Save the diagnostic file locally, then contact the Cherry Studio support team or upload it through the Feishu form via Manual feedback. Retrying may submit the same diagnostic report again.'
+        'Could not confirm whether this submission succeeded. Save the diagnostic file locally, then contact the mai studio support team or upload it through the Feishu form via Manual feedback. Retrying may submit the same diagnostic report again.'
       )
     ).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Retry' }))

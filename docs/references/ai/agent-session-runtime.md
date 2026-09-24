@@ -491,7 +491,7 @@ to restore files.
 
 ## Native user-data SQLite guard
 
-`userDataSqliteGuard.ts` is the single policy source that protects Cherry Studio's SQLite files
+`userDataSqliteGuard.ts` is the single policy source that protects mai studio's SQLite files
 across Claude Code, Pi, and DSH. Native structured write tools cannot bypass it through a permission
 mode: Claude calls it from the common `PreToolUse` guard table, Pi calls it in the shared native and
 code-mode authorizer before Full Access handling, and DSH asks Main over the authenticated bridge

@@ -342,12 +342,12 @@ describe('DshBridgeServer', () => {
         sessionId: SESSION_ID,
         callId: 'tool-1',
         name: 'mcp__cherry-tools__web_search',
-        args: { query: 'Cherry Studio' }
+        args: { query: 'mai studio' }
       })
-    ).resolves.toEqual({ text: 'mcp__cherry-tools__web_search:ok', data: { query: 'Cherry Studio' } })
+    ).resolves.toEqual({ text: 'mcp__cherry-tools__web_search:ok', data: { query: 'mai studio' } })
     expect(onToolCall).toHaveBeenCalledWith(
       'mcp__cherry-tools__web_search',
-      { query: 'Cherry Studio' },
+      { query: 'mai studio' },
       expect.any(AbortSignal)
     )
 

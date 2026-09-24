@@ -126,7 +126,7 @@ describe('Link', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' })
   })
 
-  it('renders a Cherry Studio route link as an in-app navigation entry', async () => {
+  it('renders a mai studio route link as an in-app navigation entry', async () => {
     const user = userEvent.setup()
     render(<Link href="/app/paintings?source=assistant">打开画图功能</Link>)
 

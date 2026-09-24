@@ -1,5 +1,5 @@
 ---
-description: Comparison of the three memory mechanisms in Cherry Studio — Agent File Memory, Knowledge Base, and MCP Memory — plus the status of the v1 Global Memory feature
+description: Comparison of the three memory mechanisms in mai studio — Agent File Memory, Knowledge Base, and MCP Memory — plus the status of the v1 Global Memory feature
 sources:
   - src/main/ai/agents/prompt.ts
   - src/main/ai/agents/tools/memoryTools.ts
@@ -9,7 +9,7 @@ sources:
 
 # Memory Feature Overview
 
-Cherry Studio provides three distinct memory mechanisms. They differ in who they serve, how they persist, and where they are stored. Use this reference to pick the right one for your use case and to understand why enabling one does not affect the others.
+mai studio provides three distinct memory mechanisms. They differ in who they serve, how they persist, and where they are stored. Use this reference to pick the right one for your use case and to understand why enabling one does not affect the others.
 
 ## Comparison
 
@@ -21,7 +21,7 @@ Cherry Studio provides three distinct memory mechanisms. They differ in who they
 
 ## About "Global Memory"
 
-Cherry Studio v1.x had a fourth mechanism, **Global Memory**: a Settings toggle (`feature.memory.enabled`) that made the model auto-extract durable facts from assistant chats and recall them in later assistant sessions. It was **removed in v2** ([#14250](https://github.com/CherryHQ/cherry-studio/issues/14250)) because its setup was complex and its quality did not justify the overhead. There is deliberately no Global Memory toggle in v2 settings and no replacement yet.
+mai studio v1.x had a fourth mechanism, **Global Memory**: a Settings toggle (`feature.memory.enabled`) that made the model auto-extract durable facts from assistant chats and recall them in later assistant sessions. It was **removed in v2** ([#14250](https://github.com/CherryHQ/cherry-studio/issues/14250)) because its setup was complex and its quality did not justify the overhead. There is deliberately no Global Memory toggle in v2 settings and no replacement yet.
 
 If you relied on Global Memory in v1:
 

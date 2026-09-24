@@ -139,6 +139,7 @@ export const oauthWithPPIO = async (setKey) => {
 }
 
 export const oauthWith302AI = async (setKey) => {
+  // `app`/`name` are 302.ai's SSO contract, not branding — renaming them breaks the handshake.
   const authUrl = 'https://dash.302.ai/sso/login?app=cherry-ai.com&name=Cherry%20Studio'
 
   const popup = window.open(

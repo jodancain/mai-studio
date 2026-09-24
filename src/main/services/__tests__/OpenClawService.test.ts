@@ -597,7 +597,7 @@ describe('OpenClawService gateway status state machine', () => {
           )
         ).rejects.toMatchObject({
           kind: 'external_config_invalid',
-          message: expect.stringContaining("outside Cherry Studio's managed provider section")
+          message: expect.stringContaining("outside mai studio's managed provider section")
         })
       }
     )
@@ -1896,7 +1896,7 @@ describe('OpenClawService gateway status state machine', () => {
       )
       const provider = {
         ...legacyProvider,
-        headers: { 'User-Agent': 'Cherry Studio', 'X-Synced': 'synced' },
+        headers: { 'User-Agent': 'mai studio', 'X-Synced': 'synced' },
         models: [
           {
             id: 'gpt-4o',
@@ -2199,7 +2199,7 @@ describe('OpenClawService gateway status state machine', () => {
         const result = await service.syncProviderConfig(legacyProvider, legacyModel)
 
         expect(result.success).toBe(false)
-        expect('message' in result && result.message).toContain("outside Cherry Studio's managed provider section")
+        expect('message' in result && result.message).toContain("outside mai studio's managed provider section")
         expect((service as any).gatewayAuthToken).toBe(initialToken)
         expect(fs.readFileSync(configPath, 'utf-8')).toBe(original)
         const candidatePath = validateConfigSpy.mock.calls[0][1] as string

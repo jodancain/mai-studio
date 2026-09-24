@@ -9,7 +9,7 @@ sources:
 
 # Provider & Model Registry System
 
-This document describes how Cherry Studio loads, parses, and merges provider/model preset data with user data.
+This document describes how mai studio loads, parses, and merges provider/model preset data with user data.
 
 ## Architecture Overview
 

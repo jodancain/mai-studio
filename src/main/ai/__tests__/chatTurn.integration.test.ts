@@ -212,7 +212,7 @@ describe('chat turn integration trajectory', () => {
       { type: 'start', messageId: 'assistant-tool-1' },
       { type: 'start-step' },
       { type: 'tool-input-start', toolCallId: 'call-1', toolName: 'search' },
-      { type: 'tool-input-available', toolCallId: 'call-1', toolName: 'search', input: { query: 'Cherry Studio' } },
+      { type: 'tool-input-available', toolCallId: 'call-1', toolName: 'search', input: { query: 'mai studio' } },
       { type: 'tool-output-available', toolCallId: 'call-1', output: { result: 'found' } },
       { type: 'finish-step' },
       { type: 'start-step' },
@@ -275,7 +275,7 @@ describe('chat turn integration trajectory', () => {
         type: 'tool-output-error',
         toolCallId: 'call-1',
         toolName: 'search',
-        input: { query: 'Cherry Studio' },
+        input: { query: 'mai studio' },
         errorText: 'The configured search provider is unavailable.'
       },
       { type: 'finish-step' },

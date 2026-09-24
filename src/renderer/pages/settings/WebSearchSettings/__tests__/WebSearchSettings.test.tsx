@@ -555,7 +555,7 @@ describe('WebSearchSettings', () => {
     await waitFor(() => {
       expect(ipcRequestMock).toHaveBeenCalledWith('web_search.search_keywords', {
         providerId: 'tavily',
-        keywords: ['Cherry Studio']
+        keywords: ['mai studio']
       })
     })
     expect(MockUsePreferenceUtils.getPreferenceValue('chat.web_search.provider_overrides')).toMatchObject({

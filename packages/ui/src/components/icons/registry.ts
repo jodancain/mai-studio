@@ -307,7 +307,8 @@ const PROVIDER_ID_ALIASES: Record<string, string> = {
   zai: 'z-ai',
   'minimax-global': 'minimax',
   'moonshot-global': 'moonshot',
-  cherryai: 'cherryin'
+  cherryai: 'cherryin',
+  mai: 'cherryin'
 }
 
 /**

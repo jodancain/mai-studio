@@ -1,5 +1,5 @@
 ---
-description: Entry point for building a Cherry Studio mini app — what a package is, the host API, and where each rule lives
+description: Entry point for building a mai studio mini app — what a package is, the host API, and where each rule lives
 sources:
   - src/main/features/miniApp
   - src/preload/miniAppBridge.ts
@@ -8,7 +8,7 @@ sources:
 
 # Mini App Reference
 
-A **mini app** is a static web app shipped as a `.miniapp` package (a zip with a `manifest.json` at its root). Cherry Studio installs it locally, serves it from `cherry-miniapp://<appId>/` inside a sandboxed `<webview>`, and exposes host capabilities through one global: `window.cherry`.
+A **mini app** is a static web app shipped as a `.miniapp` package (a zip with a `manifest.json` at its root). mai studio installs it locally, serves it from `cherry-miniapp://<appId>/` inside a sandboxed `<webview>`, and exposes host capabilities through one global: `window.cherry`.
 
 This is the author-facing contract. It describes what you can call, what is enforced, and what will not work — not how the host implements it.
 

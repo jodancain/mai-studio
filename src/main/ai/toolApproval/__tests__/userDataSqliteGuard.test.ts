@@ -36,7 +36,7 @@ let outsideWorkspace: string
 beforeAll(async () => {
   root = await mkdtemp(path.join(os.tmpdir(), 'user-data-sqlite-guard-'))
   homePath = path.join(root, 'home')
-  userDataPath = path.join(homePath, 'Library', 'Application Support', 'Cherry Studio')
+  userDataPath = path.join(homePath, 'Library', 'Application Support', 'mai studio')
   databaseFile = path.join(userDataPath, 'Data', 'cherrystudio.sqlite')
   workspacePath = path.join(userDataPath, 'Data', 'Agents', 'system', 'session-1')
   outsideWorkspace = path.join(root, 'workspace')
@@ -300,11 +300,7 @@ describe('evaluateUserDataSqliteGuard', () => {
 describe('path comparison semantics', () => {
   it('uses Windows case-insensitive UNC containment', () => {
     expect(
-      isSameOrInsidePath(
-        '\\\\SERVER\\Share\\Cherry Studio\\Data\\file.sqlite',
-        '\\\\server\\share\\cherry studio',
-        'win32'
-      )
+      isSameOrInsidePath('\\\\SERVER\\Share\\mai studio\\Data\\file.sqlite', '\\\\server\\share\\mai studio', 'win32')
     ).toBe(true)
   })
 

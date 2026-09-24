@@ -28,7 +28,7 @@ const meta: Meta<typeof ContextMenu> = {
     docs: {
       description: {
         component:
-          'A context menu component that displays a menu of actions when the user right-clicks. Based on Radix UI Context Menu primitive, styled to match the Cherry Studio design system.'
+          'A context menu component that displays a menu of actions when the user right-clicks. Based on Radix UI Context Menu primitive, styled to match the mai studio design system.'
       }
     }
   },

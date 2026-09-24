@@ -51,7 +51,7 @@ Environment reads. No permission needed.
 
 | Method | Returns |
 |---|---|
-| `getInfo()` | `{ appId, version, hostVersion, locale }` — your manifest `version`, the Cherry Studio version, and the UI locale (`zh-CN`, `en-US`, …) |
+| `getInfo()` | `{ appId, version, hostVersion, locale }` — your manifest `version`, the mai studio version, and the UI locale (`zh-CN`, `en-US`, …) |
 | `getPermissions()` | `{ [leaf]: boolean }` for every leaf your manifest declares (required and optional). Undeclared methods are absent, not `false` |
 
 There is no `theme` field: use `matchMedia('(prefers-color-scheme: dark)')`, which also reports changes. See [Theming](./theming.md).

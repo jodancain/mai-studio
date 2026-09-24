@@ -2434,7 +2434,9 @@ describe('SkillService', () => {
       const destDir = await createTempDir('skill-dest-')
       const zip = new AdmZip()
       zip.addFile('SKILL.md', Buffer.from('---\nname: x\n---\n'))
-      zip.addFile('../../../evil-slip-marker.sh', Buffer.from('pwn'))
+      zip.addFile('evil-slip-marker.sh', Buffer.from('pwn'))
+      // Rename the raw entry because addFile normalizes traversal segments.
+      zip.getEntry('evil-slip-marker.sh')!.entryName = '../evil-slip-marker.sh'
       const zipPath = path.join(zipDir, 'skill.zip')
       zip.writeZip(zipPath)
 

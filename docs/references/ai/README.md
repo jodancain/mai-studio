@@ -7,7 +7,7 @@ sources:
 
 # AI Reference
 
-This is the entry point for Cherry Studio's AI pipeline: main-process provider
+This is the entry point for mai studio's AI pipeline: main-process provider
 calls, AI SDK chat execution, registered agent-session runtimes, and the
 renderer-side transport that connects to them.
 

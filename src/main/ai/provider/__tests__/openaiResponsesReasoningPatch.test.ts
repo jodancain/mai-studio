@@ -41,7 +41,7 @@ describe('patched @ai-sdk/openai Responses model capabilities', () => {
 })
 
 // Without the patch, the SDK accepts the event as an unknown chunk and silently
-// drops the reasoning text before it reaches Cherry Studio's stream pipeline.
+// drops the reasoning text before it reaches mai studio's stream pipeline.
 describe('patched @ai-sdk/openai Responses reasoning parser', () => {
   it('replays item-backed raw reasoning content when store is false', async () => {
     let requestBody: any

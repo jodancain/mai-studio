@@ -13,7 +13,7 @@ const STOPPED: ManagedToolStatusState = { status: 'stopped' }
 
 /**
  * Reads the main-owned shared status snapshot. OpenClaw keeps its command request
- * only as an on-selection liveness probe for gateways started outside Cherry Studio.
+ * only as an on-selection liveness probe for gateways started outside mai studio.
  */
 export function useManagedToolStatus(tool: ManagedTool, enabled: boolean): ManagedToolStatusState {
   const deepSeek = useSharedCacheValue('feature.deepseek_harness.status')

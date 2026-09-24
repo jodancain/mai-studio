@@ -184,7 +184,7 @@ Utility functions in `src/shared/data/preference/preferenceUtils.ts`:
 {
   "app.disable_hardware_acceleration": false,
   "app.user_data_path": {
-    "/Applications/Cherry Studio.app/Contents/MacOS/Cherry Studio": "/Volumes/External/CherryData"
+    "/Applications/mai studio.app/Contents/MacOS/mai studio": "/Volumes/External/CherryData"
   }
 }
 ```

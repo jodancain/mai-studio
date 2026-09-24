@@ -33,7 +33,7 @@ describe('parseWorkbook — sheets, values, hidden', () => {
     s1.getCell('A3').value = true
     s1.getCell('A4').value = new Date(Date.UTC(2026, 0, 15))
     s1.getCell('A5').value = { richText: [{ text: 'Hello ' }, { text: 'World', font: { bold: true } }] }
-    s1.getCell('A6').value = { text: 'Cherry Studio', hyperlink: 'https://github.com/CherryHQ/cherry-studio' }
+    s1.getCell('A6').value = { text: 'mai studio', hyperlink: 'https://github.com/CherryHQ/cherry-studio' }
     s1.getCell('A7').value = { error: '#DIV/0!' }
     // sparse: leave gaps
 
@@ -92,7 +92,7 @@ describe('parseWorkbook — sheets, values, hidden', () => {
 
   it('hyperlink: text shown, hyperlink field populated', () => {
     const cell = model.sheets[0].cells['6:1']
-    expect(cell.text).toBe('Cherry Studio')
+    expect(cell.text).toBe('mai studio')
     expect(cell.hyperlink).toBe('https://github.com/CherryHQ/cherry-studio')
   })
 

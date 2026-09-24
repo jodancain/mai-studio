@@ -578,7 +578,7 @@ describe('cherry bridge plugin', () => {
 
     await expect(preExecute({ agent, name: 'bash', arguments: { command: 'echo ok' } }, vi.fn())).resolves.toEqual({
       kind: 'deny',
-      reason: 'The Cherry Studio safety guard could not verify this tool call.'
+      reason: 'The mai studio safety guard could not verify this tool call.'
     })
   })
 

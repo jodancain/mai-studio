@@ -75,7 +75,7 @@ const meta: Meta<typeof DataTable<Task>> = {
     docs: {
       description: {
         component:
-          'A shadcn/TanStack-powered data table with Cherry Studio styling, optional max width, selection, header slots, empty state, scrolling, and controlled expanded rows.'
+          'A shadcn/TanStack-powered data table with mai studio styling, optional max width, selection, header slots, empty state, scrolling, and controlled expanded rows.'
       }
     }
   },

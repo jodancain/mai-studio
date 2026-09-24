@@ -216,7 +216,7 @@ class BackupManager {
     return {
       version: DIRECT_BACKUP_VERSION,
       timestamp: Date.now(),
-      appName: 'Cherry Studio',
+      appName: 'mai studio',
       appVersion: app.getVersion(),
       platform: process.platform,
       arch: process.arch,
@@ -909,7 +909,7 @@ class BackupManager {
 
       if (!(await fs.pathExists(path.join(extractionDir, 'metadata.json')))) {
         throw new Error(
-          `Unsupported v1 backup. Cherry Studio v2 can only restore backup version ${DIRECT_BACKUP_VERSION}.`
+          `Unsupported v1 backup. mai studio v2 can only restore backup version ${DIRECT_BACKUP_VERSION}.`
         )
       }
 
@@ -938,13 +938,13 @@ class BackupManager {
 
     const existingJournal = readRestoreJournal()
     if (existingJournal.kind === 'corrupt') {
-      throw new Error('A corrupt restore journal already exists. Restart Cherry Studio before trying again.')
+      throw new Error('A corrupt restore journal already exists. Restart mai studio before trying again.')
     }
     if (
       existingJournal.kind === 'ok' &&
       (existingJournal.journal.state === 'staged' || existingJournal.journal.state === 'promoting')
     ) {
-      throw new Error('Another restore is already pending. Restart Cherry Studio before trying again.')
+      throw new Error('Another restore is already pending. Restart mai studio before trying again.')
     }
 
     // No restore is pending: terminal journals have already released their
@@ -1034,7 +1034,7 @@ class BackupManager {
       const chain = this.validateStagedDatabase(workDatabase)
       if (!this.isChainBundledPrefix(chain)) {
         throw new Error(
-          `${BACKUP_NEWER_VERSION_ERROR_CODE}: This backup was created by a newer version of Cherry Studio (database is ahead of this version) and cannot be restored here. Please update Cherry Studio and try again. Backup appVersion: ${metadata.appVersion ?? 'unknown'}, current: ${app.getVersion()}.`
+          `${BACKUP_NEWER_VERSION_ERROR_CODE}: This backup was created by a newer version of mai studio (database is ahead of this version) and cannot be restored here. Please update mai studio and try again. Backup appVersion: ${metadata.appVersion ?? 'unknown'}, current: ${app.getVersion()}.`
         )
       }
       onProgress({ stage: 'restoring_database', progress: 65, total: 100 })
@@ -1153,17 +1153,19 @@ class BackupManager {
   private async readDirectBackupMetadata(extractionDir: string): Promise<DirectBackupMetadata> {
     const raw = (await fs.readJson(path.join(extractionDir, 'metadata.json'))) as Record<string, unknown>
 
-    if (!raw || typeof raw !== 'object' || raw.appName !== 'Cherry Studio') {
-      throw new Error('This backup file is not from Cherry Studio and cannot be restored')
+    // 'Cherry Studio' is the upstream marker this fork descends from; accepting it keeps
+    // backups made before the rename restorable.
+    if (!raw || typeof raw !== 'object' || !['mai studio', 'Cherry Studio'].includes(String(raw.appName))) {
+      throw new Error('This backup file is not from mai studio and cannot be restored')
     }
     if (typeof raw.version === 'number' && raw.version > DIRECT_BACKUP_VERSION) {
       throw new Error(
-        `${BACKUP_NEWER_VERSION_ERROR_CODE}: This backup was created by a newer version of Cherry Studio (backup version ${String(raw.version)}) and cannot be restored on this version (supports ${DIRECT_BACKUP_VERSION}). Please update Cherry Studio and try again.`
+        `${BACKUP_NEWER_VERSION_ERROR_CODE}: This backup was created by a newer version of mai studio (backup version ${String(raw.version)}) and cannot be restored on this version (supports ${DIRECT_BACKUP_VERSION}). Please update mai studio and try again.`
       )
     }
     if (raw.version !== DIRECT_BACKUP_VERSION) {
       throw new Error(
-        `Unsupported backup version ${String(raw.version)}. Cherry Studio v2 can only restore backup version ${DIRECT_BACKUP_VERSION}.`
+        `Unsupported backup version ${String(raw.version)}. mai studio v2 can only restore backup version ${DIRECT_BACKUP_VERSION}.`
       )
     }
 

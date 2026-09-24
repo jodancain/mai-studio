@@ -86,7 +86,7 @@ export class AppService extends BaseService {
         // Create desktop file content
         const desktopContent = `[Desktop Entry]
   Type=Application
-  Name=Cherry Studio
+  Name=mai studio
   Comment=A powerful AI assistant for producer.
   Exec=${executablePath}
   Icon=cherrystudio

@@ -1,5 +1,5 @@
 /**
- * Disk-space health of the volume that hosts Cherry Studio's user-data directory.
+ * Disk-space health of the volume that hosts mai studio's user-data directory.
  *
  * Produced by the main-process StorageMonitorService and published through the
  * shared cache so the renderer can surface a low-disk warning. `low` means the free

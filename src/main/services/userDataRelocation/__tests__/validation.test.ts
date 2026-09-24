@@ -111,7 +111,7 @@ describe('userDataRelocation validation', () => {
     const usersRoot = path.join(root, 'Users')
     const systemHome = path.join(usersRoot, 'alice')
     const appData = path.join(systemHome, 'AppData', 'Roaming')
-    const target = path.join(appData, 'Cherry Studio')
+    const target = path.join(appData, 'mai studio')
     fs.mkdirSync(source)
     fs.mkdirSync(target, { recursive: true })
     fs.mkdirSync(appData, { recursive: true })
@@ -141,7 +141,7 @@ describe('userDataRelocation validation', () => {
     const source = path.join(root, 'source')
     const systemHome = path.join(root, 'Users', 'alice')
     const appData = path.join(systemHome, 'Library', 'Application Support')
-    const target = path.join(appData, 'Cherry Studio')
+    const target = path.join(appData, 'mai studio')
     fs.mkdirSync(source)
     fs.mkdirSync(target, { recursive: true })
     relocationState['sys.home'] = systemHome
@@ -166,7 +166,7 @@ describe('userDataRelocation validation', () => {
     const source = path.join(root, 'source')
     const systemHome = path.join(root, 'home', 'alice')
     const appData = path.join(systemHome, '.config')
-    const target = path.join(appData, 'Cherry Studio')
+    const target = path.join(appData, 'mai studio')
     fs.mkdirSync(source)
     fs.mkdirSync(target, { recursive: true })
     relocationState['sys.home'] = systemHome
@@ -190,7 +190,7 @@ describe('userDataRelocation validation', () => {
     const root = makeRoot()
     const source = path.join(root, 'source')
     const systemTemp = path.join(root, 'temp')
-    const target = path.join(systemTemp, 'Cherry Studio')
+    const target = path.join(systemTemp, 'mai studio')
     fs.mkdirSync(source)
     fs.mkdirSync(target, { recursive: true })
     relocationState['sys.temp'] = systemTemp

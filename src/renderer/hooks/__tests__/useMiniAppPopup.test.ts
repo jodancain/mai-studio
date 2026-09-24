@@ -568,14 +568,14 @@ describe('useMiniAppPopup', () => {
         result.current.openSmartMiniApp({
           appId: 'releases',
           name: 'Releases',
-          url: 'file:///Applications/Cherry%20Studio/resources/releases.html?theme=dark',
+          url: 'file:///Applications/mai%20studio/resources/releases.html?theme=dark',
           logo: 'icon'
         })
       })
 
       expect(mocks.request).toHaveBeenCalledWith(
         'system.shell.open_path',
-        '/Applications/Cherry Studio/resources/releases.html'
+        '/Applications/mai studio/resources/releases.html'
       )
       expect(mocks.request).not.toHaveBeenCalledWith('system.shell.open_external_website', expect.anything())
       expect(mockTabs.openTab).not.toHaveBeenCalled()

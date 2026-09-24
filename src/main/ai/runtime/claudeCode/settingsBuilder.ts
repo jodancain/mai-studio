@@ -1,7 +1,7 @@
 /**
- * Builds ClaudeCodeSettings from Cherry Studio's agent session configuration.
+ * Builds ClaudeCodeSettings from mai studio's agent session configuration.
  *
- * Maps Cherry Studio's internal data model (agent sessions, providers, MCP servers,
+ * Maps mai studio's internal data model (agent sessions, providers, MCP servers,
  * tool permissions, prompt builder) to ai-sdk-provider-claude-code's ClaudeCodeSettings.
  *
  * Usage:
@@ -146,7 +146,7 @@ export type { LinkedChannelSnapshot, McpServerSnapshotMap } from '@main/ai/runti
 // ── Main builder ────────────────────────────────────────────────────
 
 /**
- * Build session-level ClaudeCodeSettings from Cherry Studio's agent session.
+ * Build session-level ClaudeCodeSettings from mai studio's agent session.
  */
 export async function buildClaudeCodeSessionSettings(
   session: AgentSessionEntity,

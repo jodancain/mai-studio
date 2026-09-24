@@ -13,7 +13,7 @@ sources:
 
 ## Overview
 
-Cherry Studio clients check for updates through the managed release service at `https://releases.cherry-ai.com`. The client selects an edition-specific update channel and sends application, edition, client, platform, and region metadata. The release service owns target-version selection, regional mirrors, rollout policy, and required upgrade gateways.
+mai studio clients check for updates through the managed release service at `https://releases.cherry-ai.com`. The client selects an edition-specific update channel and sends application, edition, client, platform, and region metadata. The release service owns target-version selection, regional mirrors, rollout policy, and required upgrade gateways.
 
 The in-app release history follows the same managed path. Stable release preparation updates `resources/cherry-studio/release-history.json`, the release workflow publishes that generated file as a release asset, and clients fetch `/release-history.json` through the managed release service. The service selects GitHub or GitCode according to the request region. Each build also bundles the file as an offline fallback.
 
@@ -48,7 +48,7 @@ Before each update check, the client preserves existing updater headers and sets
 | `OS` | `process.platform` value |
 | `X-Edition` | `cn` for the China package, otherwise `global` |
 | `X-Region` | `cn` for China, otherwise `global` |
-| `User-Agent` | Generated Cherry Studio user agent |
+| `User-Agent` | Generated mai studio user agent |
 | `Cache-Control` | `no-cache` |
 
 The selected electron-updater channel determines which edition-specific manifest the client requests; no separate release-channel header is sent.

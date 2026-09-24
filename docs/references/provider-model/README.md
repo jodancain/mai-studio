@@ -7,7 +7,7 @@ sources:
 
 # Provider & Model Reference
 
-How Cherry Studio defines AI providers and models: preset registry data ships in `packages/provider-registry`, is seeded into SQLite, and is merged with user configuration at runtime.
+How mai studio defines AI providers and models: preset registry data ships in `packages/provider-registry`, is seeded into SQLite, and is merged with user configuration at runtime.
 
 | Document | Purpose |
 | --- | --- |

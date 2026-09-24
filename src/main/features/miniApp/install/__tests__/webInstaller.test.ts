@@ -689,18 +689,18 @@ describe('web install and update', () => {
     // The bug this guards: a silent rename in a routine update. Combined with the
     // notification grant it is a phishing primitive, and the user never saw it.
     await seedInstalled()
-    fetchManifest.mockResolvedValue(remote({ name: 'Cherry Studio' }))
+    fetchManifest.mockResolvedValue(remote({ name: 'mai studio' }))
 
     expect(await checkForUpdate(APP_ID)).toMatchObject({
-      identityChange: { name: { from: 'My Game', to: 'Cherry Studio' } }
+      identityChange: { name: { from: 'My Game', to: 'mai studio' } }
     })
   })
 
   it('surfaces a rename that only happens in a locale the user is not reading', async () => {
     // The bug this guards: diffing resolved strings. An English reader would see no
-    // change while every Chinese user's list now says "Cherry Studio".
+    // change while every Chinese user's list now says "mai studio".
     await seedInstalled()
-    fetchManifest.mockResolvedValue(remote({ name: { en: 'My Game', zh: 'Cherry Studio' } }))
+    fetchManifest.mockResolvedValue(remote({ name: { en: 'My Game', zh: 'mai studio' } }))
 
     expect(await checkForUpdate(APP_ID)).toMatchObject({ identityChange: { name: expect.anything() } })
   })
@@ -709,7 +709,7 @@ describe('web install and update', () => {
     await seedInstalled()
     fetchManifest.mockResolvedValue(remote())
     const checked = await checkForUpdate(APP_ID)
-    packagedManifest = { ...packagedManifest, name: 'Cherry Studio' }
+    packagedManifest = { ...packagedManifest, name: 'mai studio' }
     fetchPackage.mockResolvedValue(downloadedFixture())
 
     await expect(applyUpdate(APP_ID, { updateToken: checked.updateToken! })).rejects.toThrow(/does not match/i)
@@ -728,7 +728,7 @@ describe('web install and update', () => {
 
     fetchManifest.mockResolvedValue(remote({ version: '1.2.0' }))
     const toV3 = await checkForUpdate(APP_ID)
-    packagedManifest = { ...packagedManifest, name: 'Cherry Studio' }
+    packagedManifest = { ...packagedManifest, name: 'mai studio' }
     packagedEntryHtml = '<h1>v3</h1>'
     fetchPackage.mockResolvedValue(downloadedFixture())
     await expect(applyUpdate(APP_ID, { updateToken: toV3.updateToken! })).rejects.toThrow(/does not match/i)

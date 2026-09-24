@@ -59,7 +59,7 @@ rejected on every setup.
 
 Electron `net.fetch` uses Chromium's network stack and follows the app/session proxy configuration, but it does not expose a per-request DNS `lookup` hook. A preflight DNS check followed by `net.fetch(originalUrl)` is therefore still vulnerable to a DNS time-of-check/time-of-use gap.
 
-For direct untrusted fetches, Cherry Studio uses a Node HTTP(S) request path that pins the connection to a validated public DNS answer. This intentionally prioritizes SSRF protection over full Chromium session proxy compatibility for these direct-provider requests. Proxy-compatible fetching can be added later only if the connection guard remains enforced for the address that is actually used.
+For direct untrusted fetches, mai studio uses a Node HTTP(S) request path that pins the connection to a validated public DNS answer. This intentionally prioritizes SSRF protection over full Chromium session proxy compatibility for these direct-provider requests. Proxy-compatible fetching can be added later only if the connection guard remains enforced for the address that is actually used.
 
 Callers migrating from `net.fetch` must treat this as a user-visible compatibility change: `fetchRemoteText` does not inherit Chromium session proxy settings. Do not add a caller-specific `net.fetch` fallback, because that would reopen the DNS time-of-check/time-of-use gap. Citation previews intentionally degrade to empty preview content on proxy-only networks while keeping the citation title and link usable.
 

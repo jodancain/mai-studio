@@ -15,7 +15,7 @@ sources:
 
 # Release Workflow Operations
 
-This runbook is for maintainers operating Cherry Studio releases through GitHub Actions. For the branch model and naming rules, see [Branching Strategy](./branching-strategy.md).
+This runbook is for maintainers operating mai studio releases through GitHub Actions. For the branch model and naming rules, see [Branching Strategy](./branching-strategy.md).
 
 The release branch is the source of every installer and release asset. `main` remains the source of normal development and hotfix pull requests.
 

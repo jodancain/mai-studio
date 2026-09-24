@@ -88,11 +88,11 @@ export function openUserDataRelocationWindow(options: OpenRelocationWindowOption
     minimizable: true,
     show: false,
     autoHideMenuBar: true,
-    title: 'Cherry Studio',
+    title: 'mai studio',
     webPreferences: {
       preload: join(__dirname, '../preload/simplest.js'),
       partition: 'user-data-relocation-window',
-      sandbox: false,
+      sandbox: true,
       contextIsolation: true
     },
     ...(isMac ? { titleBarStyle: 'hidden' as const, trafficLightPosition: { x: 12, y: 14 } } : { frame: false })

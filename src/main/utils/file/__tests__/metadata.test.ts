@@ -114,7 +114,7 @@ describe('isTextByContent', () => {
 
 describe('decodeTextBufferIfText', () => {
   it.each([
-    ['UTF-8', 'Cherry Studio can read this extensionless text file.', 'utf8'],
+    ['UTF-8', 'mai studio can read this extensionless text file.', 'utf8'],
     ['GBK', '这是一个没有扩展名的中文文本文件，用于验证自动编码检测。', 'gbk'],
     ['Big5', '這是一個沒有副檔名的繁體中文文字檔案，用於驗證自動編碼偵測。', 'big5'],
     ['Shift-JIS', 'これは拡張子のない日本語テキストファイルです。文字コードを確認します。', 'shift_jis']

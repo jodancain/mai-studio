@@ -18,7 +18,7 @@ import type { PersistAssistantInput, PersistenceBackend } from '../../streamMana
 const logger = loggerService.withContext('AgentSessionMessageBackend')
 
 export interface AgentSessionMessageBackendOptions {
-  /** Cherry Studio agent-session id. */
+  /** mai studio agent-session id. */
   sessionId: string
   /** Existing assistant placeholder id to finalize. */
   assistantMessageId: string

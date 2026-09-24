@@ -1,5 +1,5 @@
 /**
- * In-process MCP server exposing Cherry Studio's builtin tools to Claude Code.
+ * In-process MCP server exposing mai studio's builtin tools to Claude Code.
  *
  * Wraps the same `webLookup` / painting cores the AI-SDK builtin tools use, so
  * Claude Code's web search/fetch and image generation run identical logic against

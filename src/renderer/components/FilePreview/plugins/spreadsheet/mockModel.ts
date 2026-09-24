@@ -74,8 +74,8 @@ export const createMockWorkbookModel = (): WorkbookRenderModel => ({
         '9:1': { text: 'Forecast', raw: 'Forecast' },
         '9:2': { text: '=FOOBAR(B3:B5)', formula: 'FOOBAR(B3:B5)', formulaState: 'unevaluated' },
         '10:1': {
-          text: 'Cherry Studio',
-          raw: 'Cherry Studio',
+          text: 'mai studio',
+          raw: 'mai studio',
           hyperlink: 'https://github.com/CherryHQ/cherry-studio'
         },
         // Far cell used to verify virtual scrolling.

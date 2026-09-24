@@ -154,7 +154,7 @@ describe('AboutSettings repository controls accessibility', () => {
 
     const repositoryButtons = screen.getAllByRole('button', { name: 'settings.about.repository' })
     expect(repositoryButtons).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: 'Cherry Studio' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'mai studio' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
 
     await user.click(repositoryButtons[0])

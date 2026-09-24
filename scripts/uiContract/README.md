@@ -1,6 +1,6 @@
 # UI semantic contract compiler
 
-This directory owns Cherry Studio's build-time `data-ui` protocol.
+This directory owns mai studio's build-time `data-ui` protocol.
 The normative consumer contract, stability tiers, maintained anchors, and Custom CSS rules live in
 [`docs/references/components/ui-semantic-contract.md`](../../docs/references/components/ui-semantic-contract.md).
 

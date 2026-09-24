@@ -7,7 +7,7 @@ sources:
 
 # IpcApi Reference
 
-Entry point for **IpcApi** — Cherry Studio's unified, type-safe channel for RPC-over-IPC: command/capability calls from the renderer into the main process, plus typed main→renderer events.
+Entry point for **IpcApi** — mai studio's unified, type-safe channel for RPC-over-IPC: command/capability calls from the renderer into the main process, plus typed main→renderer events.
 
 IpcApi is the **fifth parallel subsystem** alongside BootConfig / Cache / Preference / DataApi. It does **not** absorb any of them — it collects the "business capability IPC" those four cannot cover (window/system/shell/notification/external-service/file commands).
 

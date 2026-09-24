@@ -119,7 +119,7 @@ describe('PromptBuilder', () => {
     // No system.md → keep the runtime-native prompt as the base and append Cherry content;
     // the old embedded "personal assistant" preamble must be gone.
     expect(base).toEqual({ kind: 'native' })
-    expect(result).not.toContain('You are a personal assistant running inside Cherry Studio')
+    expect(result).not.toContain('You are a personal assistant running inside mai studio')
     expect(result).toContain('## Memories')
     expect(result).toContain(posix('`/workspace/SOUL.md`'))
   })
@@ -248,13 +248,13 @@ Always cite primary sources.`
 
   it('includes memory/FACT.md in memories section', async () => {
     setupFiles({
-      [posix('/workspace/memory/FACT.md')]: '# Active Projects\n\n- Cherry Studio'
+      [posix('/workspace/memory/FACT.md')]: '# Active Projects\n\n- mai studio'
     })
 
     const { context: result } = await builder.buildPromptParts(posix('/workspace'))
 
     expect(result).toContain('<facts>')
-    expect(result).toContain('Cherry Studio')
+    expect(result).toContain('mai studio')
     expect(result).toContain('</facts>')
     expect(result).toContain('WHAT you know')
   })
@@ -263,7 +263,7 @@ Always cite primary sources.`
     setupFiles({
       [posix('/workspace/soul.md')]: 'Be concise.',
       [posix('/workspace/user.md')]: 'Name: V',
-      [posix('/workspace/memory/FACT.md')]: 'Project: Cherry Studio'
+      [posix('/workspace/memory/FACT.md')]: 'Project: mai studio'
     })
 
     const { context: result } = await builder.buildPromptParts(posix('/workspace'))
@@ -279,7 +279,7 @@ Always cite primary sources.`
     setupFiles({
       [posix('/workspace/SOUL.md')]: 'Be concise.',
       [posix('/workspace/USER.md')]: 'Name: V',
-      [posix('/workspace/memory/FACT.md')]: 'Project: Cherry Studio'
+      [posix('/workspace/memory/FACT.md')]: 'Project: mai studio'
     })
 
     const result = await builder.buildMemoriesSection(posix('/workspace'))
@@ -287,8 +287,8 @@ Always cite primary sources.`
     expect(result).toContain('## Memories')
     expect(result).toContain('Be concise.')
     expect(result).toContain('Name: V')
-    expect(result).toContain('Project: Cherry Studio')
-    expect(result).not.toContain('You are a personal assistant running inside Cherry Studio')
+    expect(result).toContain('Project: mai studio')
+    expect(result).not.toContain('You are a personal assistant running inside mai studio')
     expect(result).not.toContain('## Autonomy Tools')
   })
 

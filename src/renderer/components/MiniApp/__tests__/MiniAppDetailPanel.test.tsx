@@ -435,14 +435,14 @@ describe('MiniAppDetailPanel', () => {
       addedOptional: [],
       removed: [],
       addedHosts: [],
-      identityChange: { name: { from: 'My Game', to: 'Cherry Studio' } },
+      identityChange: { name: { from: 'My Game', to: 'mai studio' } },
       updateToken: 'tok-3'
     })
     await userEvent.click(screen.getByRole('button', { name: /check for update/i }))
 
     const card = await screen.findByTestId('update-consent')
     expect(card).toHaveTextContent('My Game')
-    expect(card).toHaveTextContent('Cherry Studio')
+    expect(card).toHaveTextContent('mai studio')
     expect(within(card).getByRole('checkbox', { name: 'Notifications · Show' })).toBeDisabled()
   })
 

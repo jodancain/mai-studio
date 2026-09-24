@@ -5,11 +5,11 @@ sources:
   - src/shared/types/lanTransfer.ts
 ---
 
-# Cherry Studio LAN Transfer Protocol Specification
+# mai studio LAN Transfer Protocol Specification
 
 > Protocol version: 1
 
-This document defines the LAN file transfer protocol between the Cherry Studio desktop client (Electron) and mobile client (Expo).
+This document defines the LAN file transfer protocol between the mai studio desktop client (Electron) and mobile client (Expo).
 
 ---
 
@@ -79,7 +79,7 @@ Mobile must publish the service via mDNS/Bonjour:
 
 ```typescript
 {
-  name: "Cherry Studio Mobile",
+  name: "mai studio Mobile",
   type: "cherrystudio",
   protocol: "tcp",
   port: 53317,

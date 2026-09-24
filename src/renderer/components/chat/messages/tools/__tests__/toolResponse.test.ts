@@ -102,13 +102,13 @@ describe('toolResponse adapter', () => {
   })
 
   it('keeps structured MCP arrays bare for dedicated tool renderers', () => {
-    const results = [{ id: 1, title: 'Cherry Studio', url: 'https://example.com', content: 'result' }]
+    const results = [{ id: 1, title: 'mai studio', url: 'https://example.com', content: 'result' }]
     const part = {
       type: 'dynamic-tool',
       toolCallId: 'call-search',
       toolName: 'web_search',
       state: 'output-available',
-      input: { query: 'Cherry Studio' },
+      input: { query: 'mai studio' },
       output: {
         content: results,
         metadata: { serverName: 'cherry-tools', serverId: 'cherry-tools', type: 'mcp' }

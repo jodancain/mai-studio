@@ -131,7 +131,7 @@ export function buildThemeContractCss(inputs: ThemeContractInputs): string {
   const sections = [
     buildSection('Compatibility: Primitive Colors', toPrefixedMappings(inputs.primitiveColors, 'color-')),
     buildSection('Canonical Shadcn Colors', toColorMappings(SHADCN_COLOR_TOKENS)),
-    buildSection('Cherry Studio Product Colors', toColorMappings(CHERRY_PRODUCT_COLOR_TOKENS)),
+    buildSection('mai studio Product Colors', toColorMappings(CHERRY_PRODUCT_COLOR_TOKENS)),
     buildSection(
       'Compatibility: Existing Semantic Colors',
       toPrefixedMappings(COMPATIBILITY_SEMANTIC_COLOR_TOKENS, 'color-')

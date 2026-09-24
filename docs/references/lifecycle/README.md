@@ -7,7 +7,7 @@ sources:
 
 # Lifecycle & Application Reference
 
-This is the main entry point for Cherry Studio's service lifecycle and application orchestration documentation. The lifecycle system provides IoC container management, phased bootstrap, and service lifecycle control.
+This is the main entry point for mai studio's service lifecycle and application orchestration documentation. The lifecycle system provides IoC container management, phased bootstrap, and service lifecycle control.
 
 ## Quick Navigation
 

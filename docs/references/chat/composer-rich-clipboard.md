@@ -9,14 +9,14 @@ sources:
 # Composer Rich Clipboard
 
 This document describes the private clipboard format used to preserve composer
-tokens when users copy and paste between Cherry Studio message surfaces and the
+tokens when users copy and paste between mai studio message surfaces and the
 composer.
 
 ## Goals
 
 - Preserve composer tokens across internal copy/paste for `skill`, `file`,
   `command`, `knowledge`, `reference`, `quote`, and `promptVariable` content.
-- Keep regular clipboard behavior useful outside Cherry Studio through
+- Keep regular clipboard behavior useful outside mai studio through
   `text/plain` and `text/html`.
 - Never expose unsanitized token JSON, parseable composer token metadata in
   `text/plain` / `text/html`, or local file paths in any clipboard payload.
@@ -31,7 +31,7 @@ Rich composer copies write three payloads:
 | --- | --- |
 | `text/plain` | Human-readable fallback text. |
 | `text/html` | Human-readable HTML without parseable composer token metadata. |
-| `web application/x-cherry-composer-fragment+json` | Private Cherry Studio token fragment. |
+| `web application/x-cherry-composer-fragment+json` | Private mai studio token fragment. |
 
 The private fragment is versioned JSON with ordered text/token segments. Token
 payloads are sanitized before writing. File token payloads never carry a local
@@ -76,7 +76,7 @@ rejected: reading the system clipboard on paste makes every external paste async
 and reads unrelated clipboard data; writing through a synthetic copy event needs
 the deprecated `execCommand`; fingerprinting `text/html` leaks an origin marker.
 The accepted cost is that `quote` and `promptVariable` tokens from message
-copies lose token identity after an app restart or in another Cherry Studio
+copies lose token identity after an app restart or in another mai studio
 instance; `skill` and `knowledge` tokens still restore through plain text
 markers.
 

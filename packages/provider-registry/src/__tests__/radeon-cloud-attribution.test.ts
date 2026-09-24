@@ -19,7 +19,7 @@ function expectTokenFactorySource(urlString: string | undefined) {
 }
 
 describe('Radeon Cloud source attribution', () => {
-  it('attributes generated Token Factory links to Cherry Studio', () => {
+  it('attributes generated Token Factory links to mai studio', () => {
     const provider = providers.find(({ id }) => id === 'radeon-cloud')
 
     expect(provider).toBeDefined()

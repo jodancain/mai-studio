@@ -8,7 +8,7 @@ sources:
 
 # API Design Guidelines
 
-Guidelines for designing RESTful APIs in the Cherry Studio Data API system.
+Guidelines for designing RESTful APIs in the mai studio Data API system.
 
 > **File organization is separate from path design.** For which `schemas/*.ts` file a route belongs in, see [Schema File Organization](./api-types.md#schema-file-organization). This guide covers the *shape* of paths only.
 
@@ -647,7 +647,7 @@ Don't mix both forms for the same resource inside one module — although cache 
 
 ## Matcher Semantics: Cache vs DataApi
 
-Cherry Studio has two cache layers with different key shapes and different invalidation matchers. They look similar but **are not interchangeable**:
+mai studio has two cache layers with different key shapes and different invalidation matchers. They look similar but **are not interchangeable**:
 
 | Layer | Key shape | Match syntax | Example |
 |---|---|---|---|

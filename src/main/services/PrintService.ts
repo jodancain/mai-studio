@@ -39,7 +39,7 @@ const PRINT_CJK_FONT_LOCAL_NAMES = [
   'Arial Unicode MS'
 ]
 
-const PRINT_CJK_FONT_FACE = '"Cherry Studio Print CJK"'
+const PRINT_CJK_FONT_FACE = '"mai studio Print CJK"'
 const PRINT_CJK_FONT_SOURCES = PRINT_CJK_FONT_LOCAL_NAMES.map((fontName) => `local("${fontName}")`).join(', ')
 
 const PRINT_TEXT_FONT_FAMILY = `${PRINT_CJK_FONT_FACE}, "PingFang SC", "Hiragino Sans GB", "Heiti SC", "STHeiti", "Songti SC", "Microsoft YaHei", "Microsoft YaHei UI", "Microsoft JhengHei", "SimSun", "SimHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei", "Arial Unicode MS", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif`

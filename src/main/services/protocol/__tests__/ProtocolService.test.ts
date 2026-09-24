@@ -164,7 +164,7 @@ describe('ProtocolService', () => {
 
   it('registers the packaged protocol handler without dev arguments', async () => {
     setDefaultApp(false)
-    process.argv = ['Cherry Studio.exe']
+    process.argv = ['mai studio.exe']
 
     await (service as any).onInit()
 
@@ -176,14 +176,14 @@ describe('ProtocolService', () => {
     setDefaultApp(false)
     platformMock.isPortable = true
     platformMock.isWin = true
-    vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\Cherry Studio Portable.exe')
+    vi.stubEnv('PORTABLE_EXECUTABLE_FILE', 'D:\\Apps\\mai studio Portable.exe')
 
     await (service as any).onInit()
 
     expect(appMock.setAsDefaultProtocolClient).toHaveBeenCalledTimes(1)
     expect(appMock.setAsDefaultProtocolClient).toHaveBeenCalledWith(
       'cherrystudio',
-      'D:\\Apps\\Cherry Studio Portable.exe',
+      'D:\\Apps\\mai studio Portable.exe',
       []
     )
   })

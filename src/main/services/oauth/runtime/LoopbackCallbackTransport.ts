@@ -71,7 +71,7 @@ export class LoopbackCallbackTransport {
           res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
           res.end(
             `<!doctype html><html><body style="font-family:system-ui;text-align:center;padding-top:64px">` +
-              `<h2>${message}</h2><p>You can close this window and return to Cherry Studio.</p></body></html>`
+              `<h2>${message}</h2><p>You can close this window and return to mai studio.</p></body></html>`
           )
         }
 

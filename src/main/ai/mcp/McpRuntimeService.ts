@@ -476,7 +476,7 @@ export class McpRuntimeService extends BaseService {
 
     const sdk = await loadMcpClientSdk()
     // Create new client instance for each connection
-    const client = new sdk.Client({ name: 'Cherry Studio', version: app.getVersion() }, { capabilities: {} })
+    const client = new sdk.Client({ name: 'mai studio', version: app.getVersion() }, { capabilities: {} })
 
     const authProvider = new McpOAuthClientProvider({
       serverUrlHash: crypto

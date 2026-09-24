@@ -2,9 +2,9 @@
   "name": "@cherrystudio/dsh-bridge",
   "version": "0.0.1-alpha.1",
   "private": true,
-  "description": "Cherry Studio control-plane plugin for the dsh (DeepSeek Harness) runtime",
+  "description": "mai studio control-plane plugin for the dsh (DeepSeek Harness) runtime",
   "license": "MIT",
-  "author": "Cherry Studio",
+  "author": "mai studio",
   "files": [
     "dist/**/*"
   ],

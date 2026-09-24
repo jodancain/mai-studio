@@ -26,13 +26,13 @@ Double-clicking from Finder / Dock / Start Menu does **not** pass shell env vars
 
 ```bash
 # macOS
-CS_DIAGNOSTICS=1 "/Applications/Cherry Studio.app/Contents/MacOS/Cherry Studio"
+CS_DIAGNOSTICS=1 "/Applications/mai studio.app/Contents/MacOS/mai studio"
 
 # Windows (PowerShell) — adjust the path to your install location
-$env:CS_DIAGNOSTICS=1; & "$env:LOCALAPPDATA\Programs\Cherry Studio\Cherry Studio.exe"
+$env:CS_DIAGNOSTICS=1; & "$env:LOCALAPPDATA\Programs\mai studio\mai studio.exe"
 
 # Linux (AppImage; or the installed binary, whose path varies by distro)
-CS_DIAGNOSTICS=1 "./Cherry Studio-<version>-<arch>.AppImage"
+CS_DIAGNOSTICS=1 "./mai studio-<version>-<arch>.AppImage"
 ```
 
 ### Output

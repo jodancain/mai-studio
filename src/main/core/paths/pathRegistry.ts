@@ -53,7 +53,9 @@ export function buildPathRegistry() {
   const appUserDataToolchainMise = path.join(appUserDataToolchain, 'mise')
   const appSession = app.getPath('sessionData')
   const sysTemp = app.getPath('temp')
-  const appTemp = path.join(sysTemp, 'CherryStudio')
+  // Branded namespace so a dev instance does not share temp (singleton locks, OCR scratch)
+  // with an upstream Cherry Studio running alongside it.
+  const appTemp = path.join(sysTemp, 'mai studio')
   // electron-builder `extraResources` output — distinct from appRootResources
   const appExtraResources = process.resourcesPath
   // `resources/` inside asar (bundled assets) — distinct from appExtraResources

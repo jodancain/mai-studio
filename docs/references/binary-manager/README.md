@@ -32,7 +32,7 @@ Bundled copies are a separate availability source. The app extracts its shipped 
 
 ### Portable definitions and machine-local state
 
-Backup and restore transport `feature.binary.tools` as portable custom definitions only. Restoring them can recreate custom cards and requested version pins on another machine, but it never installs tools, recreates backend application, or copies operation/latest-version state. Fixed definitions come from the running Cherry Studio build and are not backup data. After restore, each machine derives `application` and `availability` from its own mise state, bundled files, and system PATH.
+Backup and restore transport `feature.binary.tools` as portable custom definitions only. Restoring them can recreate custom cards and requested version pins on another machine, but it never installs tools, recreates backend application, or copies operation/latest-version state. Fixed definitions come from the running mai studio build and are not backup data. After restore, each machine derives `application` and `availability` from its own mise state, bundled files, and system PATH.
 
 ## Snapshots
 

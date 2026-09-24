@@ -203,6 +203,7 @@ describe('Pi provider request fetch', () => {
     ).result()
 
     expect(result.stopReason).toBe('error')
+    expect(result.errorMessage).toContain('expected test rejection')
     expect(authorizedRequests).toBe(1)
   })
 })

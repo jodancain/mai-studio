@@ -7,7 +7,7 @@ sources:
 
 # UI Semantic Contract
 
-Cherry Studio exposes meaningful app-owned DOM boundaries through one machine-readable `data-ui` attribute. It is the
+mai studio exposes meaningful app-owned DOM boundaries through one machine-readable `data-ui` attribute. It is the
 maintained selector interface for user themes, end-to-end tests, inspectors, and controlled AI automation. Internal
 classes, incidental DOM ancestry, and unmarked implementation wrappers are not part of this contract.
 

@@ -56,7 +56,7 @@ describe('buildThemeContractCss', () => {
     expect(css).toContain('--color-neutral-50: var(--cs-neutral-50);')
     expect(css).toContain('--color-brand-500: var(--cs-brand-500);')
     expect(css).toContain('/* Canonical Shadcn Colors */')
-    expect(css).toContain('/* Cherry Studio Product Colors */')
+    expect(css).toContain('/* mai studio Product Colors */')
     expect(css).toContain('--color-background: var(--background);')
     expect(css).toContain('--color-primary: var(--primary);')
     expect(css).toContain('--color-muted-foreground: var(--muted-foreground);')

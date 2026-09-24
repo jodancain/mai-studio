@@ -1,6 +1,6 @@
 ---
 name: cherry-browser
-description: Interact with the user's visible Agent browser in Cherry Studio. Use for page navigation, authenticated websites, screenshots, forms, clicks, and browser debugging. Check live browser tools first; browser control requires the Browser setting and an available Agent pane.
+description: Interact with the user's visible Agent browser in mai studio. Use for page navigation, authenticated websites, screenshots, forms, clicks, and browser debugging. Check live browser tools first; browser control requires the Browser setting and an available Agent pane.
 version: 1.0.0
 ---
 

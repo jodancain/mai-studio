@@ -29,7 +29,7 @@
  * make different trade-offs. This module's specific value is eliminating the
  * "forgot to rethrow" bug class at the type layer, which matters in Cherry
  * Studio's direct-db-access Service pattern where no IoC/AOP framework can
- * catch misses. If future Cherry Studio architecture adopts such a framework,
+ * catch misses. If future mai studio architecture adopts such a framework,
  * revisit whether a typed exception hierarchy is a better fit.
  */
 

@@ -25,7 +25,7 @@ vi.mock('../bundledGit', () => ({
 
 const BUNDLED_GIT = 'C:\\Cherry\\resources\\binaries\\win32-x64\\git\\cmd\\git.exe'
 const UNICODE_BUNDLED_GIT =
-  'D:\\常用软件\\Cherry Studio\\resources\\app.asar.unpacked\\resources\\binaries\\win32-x64\\git\\cmd\\git.exe'
+  'D:\\常用软件\\mai studio\\resources\\app.asar.unpacked\\resources\\binaries\\win32-x64\\git\\cmd\\git.exe'
 const MISE_SHIM = 'C:\\mise\\shims\\git.cmd'
 const SYSTEM_GIT = 'C:\\Git\\cmd\\git.exe'
 const originalProgramFiles = process.env.ProgramFiles
@@ -115,7 +115,7 @@ describe('findExecutableInEnv – bundled MinGit resolver ordering', () => {
     await expect(findExecutableInEnv('git')).resolves.toBe(BUNDLED_GIT)
   })
 
-  it('uses the original bundled git path when Cherry Studio is installed under a Unicode directory', async () => {
+  it('uses the original bundled git path when mai studio is installed under a Unicode directory', async () => {
     const bundledGitDir = path.dirname(UNICODE_BUNDLED_GIT)
     const shellEnv = { Path: `C:\\Windows;${bundledGitDir}` }
     vi.mocked(getShellEnv).mockResolvedValue(shellEnv)

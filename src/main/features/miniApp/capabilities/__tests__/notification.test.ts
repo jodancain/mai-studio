@@ -61,7 +61,7 @@ describe('cherry.notification.show', () => {
 
   it('carries the appId, so a renamed app cannot pose as another one', async () => {
     // The bug this guards: attributing by manifest `name`. An app holding the
-    // notification grant can rename itself to "Cherry Studio" in a routine update.
+    // notification grant can rename itself to "mai studio" in a routine update.
     await notificationCapability.show(A, { title: 'Sign in again', body: 'Session expired' })
 
     expect(sendNotification.mock.calls[0][0].title).toContain(A)

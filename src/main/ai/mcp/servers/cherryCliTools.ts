@@ -56,7 +56,7 @@ const CLI_TOOLS: readonly Tool[] = [
   {
     name: CLI_INSTALL_TOOL_NAME,
     description:
-      'Install a reusable CLI into Cherry Studio’s isolated mise environment. Use a name/recipe returned by cli_search, or exact executable and mise recipe derived from trusted public documentation. The operation requires user approval and accepts the same backends as BinaryManager; validation errors explain how to correct the recipe.',
+      'Install a reusable CLI into mai studio’s isolated mise environment. Use a name/recipe returned by cli_search, or exact executable and mise recipe derived from trusted public documentation. The operation requires user approval and accepts the same backends as BinaryManager; validation errors explain how to correct the recipe.',
     inputSchema: toInputSchema(cliInstallInputSchema)
   }
 ]

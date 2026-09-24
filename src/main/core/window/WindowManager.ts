@@ -642,7 +642,7 @@ export class WindowManager extends BaseService {
   // namespace so the declarative three-layer split (windowOptions / behavior
   // / quirks) is visible at the call site.
 
-  // ─── Public API: Broadcast (Cherry Studio extension) ──────────
+  // ─── Public API: Broadcast (mai studio extension) ──────────
 
   /**
    * Broadcast an IPC message to all managed windows.

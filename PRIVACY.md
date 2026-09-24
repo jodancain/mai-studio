@@ -1,10 +1,10 @@
-# Cherry Studio Privacy Policy
+# mai studio Privacy Policy
 
 **Updated Date:** August 20, 2026
 
 **Effective Date:** August 20, 2026
 
-Welcome to Cherry Studio (hereinafter referred to as "this Software" or "we"). We place a high priority on protecting your privacy. This Privacy Policy explains how we handle and protect your personal information and data. Please read and understand this policy carefully before using this Software.
+Welcome to mai studio (hereinafter referred to as "this Software" or "we"). We place a high priority on protecting your privacy. This Privacy Policy explains how we handle and protect your personal information and data. Please read and understand this policy carefully before using this Software.
 
 ## I. Scope of Information We Collect
 
@@ -46,7 +46,7 @@ To maximize the protection of your privacy and information security, we explicit
 
 ## III. Local Storage and Data Interaction Explanation
 
-**Data Localization:** Your API Keys, historical conversation records, and personal preference settings are by default stored locally on your device. Cherry Studio does not provide cloud synchronization services and will not upload this data to our servers (except for the transient relay strictly necessary to complete inference when you use the Built-in Model Services described in Section IV).
+**Data Localization:** Your API Keys, historical conversation records, and personal preference settings are by default stored locally on your device. mai studio does not provide cloud synchronization services and will not upload this data to our servers (except for the transient relay strictly necessary to complete inference when you use the Built-in Model Services described in Section IV).
 
 **Direct Calls:** When you use third-party model services that you have configured yourself, this Software acts as a local tool providing interface calling functionality to third-party model services. Your terminal device establishes a direct network connection with the servers of the third-party model providers you configure (e.g., OpenAI, Anthropic), and such data is not relayed through our servers.
 
@@ -54,7 +54,7 @@ To maximize the protection of your privacy and information security, we explicit
 
 ## IV. Built-in Model Services
 
-Cherry Studio provides Built-in Model Services that require no API Key configuration on your part. When you use these services, the prompts, conversation context, and model responses necessary to complete inference are relayed through Cherry Studio's official service.
+mai studio provides Built-in Model Services that require no API Key configuration on your part. When you use these services, the prompts, conversation context, and model responses necessary to complete inference are relayed through mai studio's official service.
 
 The relay service processes only the current request. It does not log or store the relevant content, discards it immediately upon completion of the request, and does not use it for any purpose beyond that request.
 
@@ -141,10 +141,10 @@ This Privacy Policy may be updated from time to time. In the event of any materi
 
 ## IX. Contact Us
 
-If you have any questions regarding this Privacy Policy or Cherry Studio's privacy protection measures, or if you wish to contact us regarding the processing of your information, please feel free to contact us through the following channel:
+If you have any questions regarding this Privacy Policy or mai studio's privacy protection measures, or if you wish to contact us regarding the processing of your information, please feel free to contact us through the following channel:
 
 **Email:** privacy@cherry-ai.com
 
 We will respond within 15 business days after receiving your request.
 
-Thank you for choosing and trusting Cherry Studio. We will continue to provide you with a safe and reliable product experience.
+Thank you for choosing and trusting mai studio. We will continue to provide you with a safe and reliable product experience.

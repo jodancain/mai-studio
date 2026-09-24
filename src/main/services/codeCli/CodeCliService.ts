@@ -769,9 +769,9 @@ export class CodeCliService extends BaseService {
         const batContent = [
           '@echo off',
           'chcp 65001 >nul 2>&1', // Switch to UTF-8 code page for international path support
-          `title ${cliTool} - Cherry Studio`,
+          `title ${cliTool} - mai studio`,
           'echo ================================================',
-          'echo Cherry Studio CLI Tool Launcher',
+          'echo mai studio CLI Tool Launcher',
           `echo Tool: ${CodeCliService.escapeBatchTextForEcho(cliTool)}`,
           `echo Directory: ${CodeCliService.escapeBatchTextForEcho(directory)}`,
           `echo Time: ${new Date().toLocaleString()}`,

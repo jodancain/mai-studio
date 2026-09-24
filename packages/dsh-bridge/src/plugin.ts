@@ -424,7 +424,7 @@ export function apply(ctx: Context): void {
     } catch {
       return {
         kind: 'deny' as const,
-        reason: 'The Cherry Studio safety guard could not verify this tool call.'
+        reason: 'The mai studio safety guard could not verify this tool call.'
       }
     }
 

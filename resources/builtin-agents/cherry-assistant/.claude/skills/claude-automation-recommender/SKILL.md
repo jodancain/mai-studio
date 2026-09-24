@@ -29,7 +29,7 @@ Analyze codebase patterns to recommend tailored Claude Code automations across a
 
 ## Workflow
 
-### Phase 0: Confirm Before Scanning（Cherry Studio addition）
+### Phase 0: Confirm Before Scanning（mai studio addition）
 
 This scan reads many files (package.json, source structure, .claude/, framework
 configs, dependencies) and produces detailed analysis. **It is token-intensive**
@@ -45,7 +45,7 @@ Before doing **any** filesystem reads or Bash calls, you MUST:
    > `src/` `tests/` 项目结构 + 已有的 `.claude/` 配置 + CLAUDE.md，给出 hook /
    > subagent / skill / MCP 推荐。预计消耗 **~30K tokens**（实际取决于仓库大小）。
 
-2. **Ask explicit confirmation** with a clear yes/no question — in Cherry Studio
+2. **Ask explicit confirmation** with a clear yes/no question — in mai studio
    the chat UI surfaces this as a confirmation button:
 
    > **继续扫描吗？** / **Proceed with scan?**

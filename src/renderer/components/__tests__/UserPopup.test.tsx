@@ -306,7 +306,7 @@ describe('UserPopup', () => {
     })
   })
 
-  it('starts and cancels Cherry Studio browser authorization', async () => {
+  it('starts and cancels mai studio browser authorization', async () => {
     const user = userEvent.setup()
     mocks.ipcRequest.mockImplementation(async (route: string) => {
       if (route === 'cherry_cloud.status.get') return { phase: 'signed-out', displayName: null }

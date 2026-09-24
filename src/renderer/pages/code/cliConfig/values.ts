@@ -45,7 +45,7 @@ export function omitKeysByPrefix<T>(record: Record<string, T>, prefix: string): 
   return Object.fromEntries(Object.entries(record).filter(([key]) => !key.startsWith(prefix)))
 }
 
-/** True when a model entry was injected by Cherry Studio (its `envKey` starts with `CHERRY_`). */
+/** True when a model entry was injected by mai studio (its `envKey` starts with `CHERRY_`). */
 export function isCherryManagedModel(item: unknown): boolean {
   return Boolean(
     item &&
@@ -55,7 +55,7 @@ export function isCherryManagedModel(item: unknown): boolean {
   )
 }
 
-/** Find the provider key Cherry Studio manages (prefixed with `CHERRY_PROVIDER_PREFIX`). */
+/** Find the provider key mai studio manages (prefixed with `CHERRY_PROVIDER_PREFIX`). */
 export function findCherryProviderKey(providers: Record<string, any>): string | undefined {
   return Object.keys(providers).find((key) => key.startsWith(CHERRY_PROVIDER_PREFIX))
 }

@@ -31,7 +31,7 @@ export function isAllowedNavigationPath(path: string, allowedRoutes: readonly st
 }
 
 /**
- * Routes that assistant output may open inside Cherry Studio.  Keep this list
+ * Routes that assistant output may open inside mai studio.  Keep this list
  * shared with markdown linkification so route-shaped paths remain navigable on
  * every host platform (Windows paths otherwise require a drive or UNC prefix).
  */
