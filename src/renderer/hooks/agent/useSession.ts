@@ -498,7 +498,8 @@ export const useUpdateSession = () => {
   const { trigger: setWorkspaceTrigger } = useMutation('PUT', '/agent-sessions/:sessionId/workspace', {
     // Switching workspace creates/deletes a backing system workspace row, so
     // refresh the workspace list alongside the session caches.
-    refresh: ({ args }) => ['/agent-sessions', `/agent-sessions/${args!.params.sessionId}`, '/agent-workspaces']
+    refresh: ({ args }) => ['/agent-sessions', `/agent-sessions/${args!.params.sessionId}`, '/agent-workspaces'],
+    refreshOnUncertain: () => ['/agent-workspaces']
   })
 
   const updateSession = useCallback(

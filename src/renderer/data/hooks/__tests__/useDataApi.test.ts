@@ -3,10 +3,11 @@ import type { Cache } from 'swr'
 import useSWR, { unstable_serialize, useSWRConfig } from 'swr'
 import type { SWRInfiniteKeyedMutator } from 'swr/infinite'
 import useSWRInfinite, { unstable_serialize as unstable_serialize_infinite } from 'swr/infinite'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { dataApiService } from '@data/DataApiService'
 import type * as RendererConstantModule from '@renderer/utils/platform'
+import { DataApiError, ErrorCode } from '@shared/data/api/errors'
 import type { ConcreteApiPaths } from '@shared/data/api/types'
 import type { BranchMessagesResponse } from '@shared/data/types/message'
 
@@ -45,6 +46,8 @@ const {
   findMatchingInfiniteKeys,
   invalidatePathPatterns
 } = __testing
+
+beforeEach(() => vi.clearAllMocks())
 
 /**
  * Build a useSWRInfinite cache key for `[path, query?]`. Uses `swr/infinite`'s
@@ -925,6 +928,114 @@ describe('usePaginatedQuery reset-on-query-change', () => {
     rerender()
     rerender()
     expect(result.current.page).toBe(2)
+  })
+})
+
+describe('useMutation uncertain write recovery', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('reads back imported assistants and groups when the write commits before timing out', async () => {
+    let committed = false
+    const timeout = new DataApiError(ErrorCode.TIMEOUT, 'Write outcome unknown', 504)
+    vi.spyOn(dataApiService, 'get').mockImplementation((async (path: string) => {
+      if (path === '/assistants') return { items: committed ? [{ id: 'imported' }] : [] }
+      if (path === '/groups') return committed ? [{ id: 'imported-group' }] : []
+      throw new Error(`Unexpected read: ${path}`)
+    }) as never)
+    vi.spyOn(dataApiService, 'post').mockImplementation(async () => {
+      committed = true
+      throw timeout
+    })
+    const { Wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => ({
+        assistants: useQuery('/assistants'),
+        groups: useQuery('/groups', { query: { entityType: 'assistant' } }),
+        mutation: useMutation('POST', '/assistants:import', { refresh: ['/assistants', '/groups'] })
+      }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() => expect(result.current.groups.data).toEqual([]))
+    await waitFor(() => expect(result.current.assistants.data?.items).toEqual([]))
+
+    await act(async () => {
+      await expect(result.current.mutation.trigger({ body: { name: 'Imported', prompt: '' } })).rejects.toBe(timeout)
+    })
+
+    await waitFor(() => expect(result.current.assistants.data?.items).toEqual([{ id: 'imported' }]))
+    await waitFor(() => expect(result.current.groups.data).toEqual([{ id: 'imported-group' }]))
+  })
+
+  it('reads back knowledge base membership after a timed-out group deletion', async () => {
+    let committed = false
+    const timeout = new DataApiError(ErrorCode.TIMEOUT, 'Write outcome unknown', 504)
+    vi.spyOn(dataApiService, 'get').mockImplementation((async (path: string) => {
+      if (path === '/groups') return committed ? [] : [{ id: 'group-1' }]
+      if (path === '/knowledge-bases') {
+        return {
+          items: [{ id: 'knowledge-1', groupId: committed ? null : 'group-1' }],
+          total: 1,
+          nextCursor: null
+        }
+      }
+      throw new Error(`Unexpected read: ${path}`)
+    }) as never)
+    vi.spyOn(dataApiService, 'delete').mockImplementation(async () => {
+      committed = true
+      throw timeout
+    })
+    const { Wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => ({
+        groups: useQuery('/groups', { query: { entityType: 'knowledge' } }),
+        knowledge: useQuery('/knowledge-bases'),
+        mutation: useMutation('DELETE', '/groups/:id', { refresh: ['/groups', '/knowledge-bases'] })
+      }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() =>
+      expect(result.current.knowledge.data?.items).toEqual([{ id: 'knowledge-1', groupId: 'group-1' }])
+    )
+    await waitFor(() => expect(result.current.groups.data).toEqual([{ id: 'group-1' }]))
+
+    await act(async () => {
+      await expect(result.current.mutation.trigger({ params: { id: 'group-1' } })).rejects.toBe(timeout)
+    })
+
+    await waitFor(() => expect(result.current.groups.data).toEqual([]))
+    await waitFor(() => expect(result.current.knowledge.data?.items).toEqual([{ id: 'knowledge-1', groupId: null }]))
+  })
+
+  it('uses captured args for uncertain refresh without invoking a result-dependent success callback', async () => {
+    let committed = false
+    const timeout = new DataApiError(ErrorCode.TIMEOUT, 'Write outcome unknown', 504)
+    const refresh = vi.fn(() => {
+      throw new Error('A server result is required')
+    })
+    vi.spyOn(dataApiService, 'get').mockImplementation((async () => [{ id: 'skill-1', isEnabled: committed }]) as never)
+    vi.spyOn(dataApiService, 'patch').mockImplementation(async () => {
+      committed = true
+      throw timeout
+    })
+    const { Wrapper } = makeWrapper()
+    const { result } = renderHook(
+      () => ({
+        skills: useQuery('/skills'),
+        mutation: useMutation('PATCH', '/agents/:agentId', {
+          refresh,
+          refreshOnUncertain: ({ args }) => (args?.params.agentId === 'agent-1' ? ['/skills'] : [])
+        })
+      }),
+      { wrapper: Wrapper }
+    )
+    await waitFor(() => expect(result.current.skills.data).toEqual([{ id: 'skill-1', isEnabled: false }]))
+
+    await act(async () => {
+      await expect(result.current.mutation.trigger({ params: { agentId: 'agent-1' } })).rejects.toBe(timeout)
+    })
+
+    await waitFor(() => expect(result.current.skills.data).toEqual([{ id: 'skill-1', isEnabled: true }]))
+    expect(refresh).not.toHaveBeenCalled()
   })
 })
 

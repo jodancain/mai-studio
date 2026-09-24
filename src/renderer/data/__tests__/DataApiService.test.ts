@@ -242,3 +242,42 @@ describe('DataApiService devtools instrumentation', () => {
     expect(window.__CHERRY_DATA_API_DEVTOOLS__).toBeUndefined()
   })
 })
+
+describe('DataApiService write safety', () => {
+  it('does not duplicate a write that commits after the caller timeout', async () => {
+    const service = await createService()
+    vi.useFakeTimers()
+    let savedTopics = 0
+    request.mockImplementation(
+      (req) =>
+        new Promise((resolve) =>
+          setTimeout(() => {
+            savedTopics++
+            resolve({ id: req.id, status: 200, data: { id: 'saved-topic' } })
+          }, 4000)
+        )
+    )
+    try {
+      const result = service.post('/topics', { body: { name: 'Slow topic' } }).catch((error) => error)
+      await vi.advanceTimersByTimeAsync(3000)
+      expect(await result).toMatchObject({ code: 'TIMEOUT', details: { outcomeUnknown: true } })
+      await vi.advanceTimersByTimeAsync(10000)
+      expect(savedTopics).toBe(1)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('cleans up the deadline after a successful request', async () => {
+    const service = await createService()
+    vi.useFakeTimers()
+    try {
+      request.mockResolvedValue({ status: 200, data: { items: [] } })
+      await expect(service.get('/topics')).resolves.toEqual({ items: [] })
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})

@@ -29,6 +29,8 @@
  * @see {@link useDataApi} React hook for data requests
  */
 
+import { t } from 'i18next'
+
 import { loggerService } from '@logger'
 import type { RequestContext } from '@shared/data/api/errors'
 import { DataApiError, DataApiErrorFactory, ErrorCode, toDataApiError } from '@shared/data/api/errors'
@@ -119,6 +121,7 @@ export class DataApiService implements ApiClient {
       throw DataApiErrorFactory.create(ErrorCode.SERVICE_UNAVAILABLE, 'Data API not available')
     }
     let errorMetadata: DataResponse['metadata'] | undefined
+    let timeout: ReturnType<typeof setTimeout> | undefined
     DataApiDevtools.recordStart({
       requestId: request.id,
       method: request.method,
@@ -137,14 +140,14 @@ export class DataApiService implements ApiClient {
     }
 
     try {
-      logger.debug(`Making ${request.method} request to ${request.path}`, { request })
+      logger.debug(`Making ${request.method} request to ${request.path}`, { requestId: request.id })
 
       // Direct IPC call with timeout
       const response = await Promise.race([
         window.api.dataApi.request(request),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(DataApiErrorFactory.timeout(request.path, 3000, requestContext)), 3000)
-        )
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(() => reject(DataApiErrorFactory.timeout(request.path, 3000, requestContext)), 3000)
+        })
       ])
 
       if (response.error) {
@@ -183,7 +186,7 @@ export class DataApiService implements ApiClient {
       logger.debug(`Request failed: ${request.method} ${request.path}`, apiError)
 
       // Check if should retry using the error's built-in isRetryable getter
-      if (retryCount < this.defaultRetryOptions.maxRetries && apiError.isRetryable) {
+      if (request.method === 'GET' && retryCount < this.defaultRetryOptions.maxRetries && apiError.isRetryable) {
         DataApiDevtools.recordRetry({
           requestId: request.id,
           method: request.method,
@@ -208,7 +211,18 @@ export class DataApiService implements ApiClient {
         return this.sendRequest<T>(retryRequest, retryCount + 1)
       }
 
+      if (request.method !== 'GET' && apiError.code === ErrorCode.TIMEOUT) {
+        throw new DataApiError(
+          ErrorCode.TIMEOUT,
+          t('error.write_outcome_unknown'),
+          504,
+          { operation: request.path, timeoutMs: 3000, outcomeUnknown: true },
+          requestContext
+        )
+      }
       throw apiError
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
@@ -241,7 +255,7 @@ export class DataApiService implements ApiClient {
       }
     }
 
-    logger.debug(`Making ${method} request to ${path}`, { request })
+    logger.debug(`Making ${method} request to ${path}`, { requestId: request.id })
 
     return this.sendRequest<T>(request).catch((error) => {
       logger.error(`Request failed: ${method} ${path}`, error)

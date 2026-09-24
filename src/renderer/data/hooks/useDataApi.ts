@@ -46,6 +46,7 @@ import { dataApiService } from '@data/DataApiService'
 import { loggerService } from '@logger'
 import { resolveTemplate } from '@renderer/data/utils/dataApiPath'
 import { isDev } from '@renderer/utils/platform'
+import { DataApiError, ErrorCode } from '@shared/data/api/errors'
 import type {
   ApiPath,
   BodyForPath,
@@ -428,6 +429,8 @@ export function useMutation<TPath extends ApiPath, TMethod extends 'POST' | 'PUT
     onError?: (error: Error) => void
     /** API paths to revalidate on success; supports trailing `/*` for prefix match or a function of trigger args/result */
     refresh?: RefreshOption<TPath, TMethod>
+    /** Additional paths to revalidate after a timeout, when no server result is available. Static `refresh` paths are included automatically. */
+    refreshOnUncertain?: (ctx: Pick<RefreshContext<TPath, TMethod>, 'args'>) => ConcreteApiPaths[]
     /** If provided, updates cache immediately (with auto-rollback on error) */
     optimisticData?: ResponseForPath<TPath, TMethod>
     /** Override SWR mutation configuration (fetcher, onSuccess, onError are handled internally) */
@@ -568,6 +571,18 @@ export function useMutation<TPath extends ApiPath, TMethod extends 'POST' | 'PUT
 
         return result
       } catch (err) {
+        if (err instanceof DataApiError && err.code === ErrorCode.TIMEOUT) {
+          const collection = `/${resolvedPath.split('/')[1].split(':')[0]}`
+          const keys = [collection, `${collection}/*`, ...(Array.isArray(opts?.refresh) ? opts.refresh : [])]
+          try {
+            keys.push(...(opts?.refreshOnUncertain?.({ args: capturedArgs }) ?? []))
+          } catch (refreshError) {
+            logger.warn('Could not resolve refresh paths after an uncertain write', { error: refreshError })
+          }
+          await invalidatePathPatterns(cache, globalMutate, keys).catch((refreshError) =>
+            logger.warn('Could not refresh after an uncertain write', { error: refreshError })
+          )
+        }
         // Rollback optimistic update on error
         if (hasOptimisticData) {
           await globalMutate([resolvedPath])

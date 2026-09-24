@@ -13,6 +13,7 @@ import { isEqual } from 'es-toolkit/compat'
 import { application } from '@application'
 import type { ModelLookupResult } from '@cherrystudio/provider-registry'
 import { inferReasoningOwnedBy } from '@cherrystudio/provider-registry'
+import { notifyDataApiDataChange } from '@data/dataApiDataChange'
 import type { InsertUserModelRow, UserModelRow } from '@data/db/schemas/userModel'
 import { userModelTable } from '@data/db/schemas/userModel'
 import { userProviderTable } from '@data/db/schemas/userProvider'
@@ -1015,6 +1016,11 @@ class ModelService {
 
     logger.info('Updated model', { providerId, modelId, changes: Object.keys(dto) })
 
+    notifyDataApiDataChange([
+      { endpoint: '/models', kind: 'projection', entityIds: [row.id] },
+      { endpoint: '/models/:uniqueModelId*', entityIds: [row.id] }
+    ])
+
     return this.enrichRowsFromRegistryTx(db, [row])[0]
   }
 
@@ -1078,6 +1084,11 @@ class ModelService {
       count: rows.length,
       providers: [...new Set(items.map((item) => item.providerId))]
     })
+
+    notifyDataApiDataChange([
+      { endpoint: '/models', kind: 'projection', entityIds: rows.map((row) => row.id) },
+      { endpoint: '/models/:uniqueModelId*', entityIds: rows.map((row) => row.id) }
+    ])
 
     return this.enrichRowsFromRegistryTx(db, rows)
   }

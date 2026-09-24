@@ -26,30 +26,24 @@ describe('useAgentMutationsById', () => {
     })
   })
 
-  it('uses DataApi only for the scoped update mutation', () => {
-    renderHook(() => useAgentMutationsById('agent-1'))
+  it.each(['refresh', 'refreshOnUncertain'])(
+    '%s includes /skills only when the PATCH body includes skillUpdates',
+    (option) => {
+      renderHook(() => useAgentMutationsById('agent-1'))
 
-    expect(useMutationMock).toHaveBeenCalledWith('PATCH', '/agents/agent-1', {
-      refresh: expect.any(Function)
-    })
-    expect(useMutationMock).toHaveBeenCalledTimes(1)
-  })
+      const patchCall = useMutationMock.mock.calls.find(([method]) => method === 'PATCH')
+      const refresh = patchCall?.[2][option] as (ctx: { args?: { body?: object } }) => string[]
 
-  it('additionally refreshes /skills only when the PATCH body includes skillUpdates', () => {
-    renderHook(() => useAgentMutationsById('agent-1'))
-
-    const patchCall = useMutationMock.mock.calls.find(([method]) => method === 'PATCH')
-    const refresh = patchCall?.[2].refresh as (ctx: { args?: { body?: object } }) => string[]
-
-    expect(refresh({ args: { body: { name: 'Renamed' } } })).toEqual(['/agents', '/agents/*'])
-    expect(refresh({ args: { body: { skillUpdates: [{ skillId: 'skill-1', isEnabled: true }] } } })).toEqual([
-      '/agents',
-      '/agents/*',
-      '/skills'
-    ])
-    expect(refresh({ args: { body: { skillUpdates: [] } } })).toEqual(['/agents', '/agents/*', '/skills'])
-    expect(refresh({ args: undefined })).toEqual(['/agents', '/agents/*'])
-  })
+      expect(refresh({ args: { body: { name: 'Renamed' } } })).toEqual(['/agents', '/agents/*'])
+      expect(refresh({ args: { body: { skillUpdates: [{ skillId: 'skill-1', isEnabled: true }] } } })).toEqual([
+        '/agents',
+        '/agents/*',
+        '/skills'
+      ])
+      expect(refresh({ args: { body: { skillUpdates: [] } } })).toEqual(['/agents', '/agents/*', '/skills'])
+      expect(refresh({ args: undefined })).toEqual(['/agents', '/agents/*'])
+    }
+  )
 })
 
 describe('useAgentMutations', () => {

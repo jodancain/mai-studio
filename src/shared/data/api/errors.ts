@@ -228,6 +228,7 @@ export interface DatabaseErrorDetails {
 export interface TimeoutErrorDetails {
   operation?: string
   timeoutMs?: number
+  outcomeUnknown?: boolean
 }
 
 /**

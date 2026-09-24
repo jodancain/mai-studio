@@ -69,6 +69,8 @@ export function useAgentMutationsById(id: string) {
     // skillUpdates writes the agent_skill join table, which backs `GET /skills?agentId=…`
     // (per-agent isEnabled projection) — refresh it so those lists don't go stale.
     refresh: ({ args }) =>
+      args?.body?.skillUpdates !== undefined ? ['/agents', '/agents/*', '/skills'] : ['/agents', '/agents/*'],
+    refreshOnUncertain: ({ args }) =>
       args?.body?.skillUpdates !== undefined ? ['/agents', '/agents/*', '/skills'] : ['/agents', '/agents/*']
   })
   const updateAgent = useCallback(
