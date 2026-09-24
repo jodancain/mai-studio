@@ -525,7 +525,7 @@ describe('TopicStreamSubscription', () => {
       mock.emitChunk(TOPIC, A, textChunk('fast answer'), undefined, 1, 1)
       if (status === 'error') mock.emitError(TOPIC, A)
       else mock.emitDone(TOPIC, A, status === 'done' ? 'success' : 'paused')
-      attach.resolve(status === 'error' ? { status, error: STREAM_ERROR } : { status })
+      attach.resolve(status === 'error' ? { status, error: STREAM_ERROR } : { status, finalMessages: {} })
 
       expect(await readAll(stream)).toEqual([
         textChunk('fast answer'),
@@ -541,7 +541,7 @@ describe('TopicStreamSubscription', () => {
   )
 
   it('keeps a sequenced answer that finishes before its reader registers', async () => {
-    mock.mockApi.streamAttach.mockResolvedValueOnce({ status: 'done' })
+    mock.mockApi.streamAttach.mockResolvedValueOnce({ status: 'done', finalMessages: {} })
     const sub = new TopicStreamSubscription(TOPIC)
     sub.listen()
     const chunks: UIMessageChunk[] = [
@@ -573,7 +573,7 @@ describe('TopicStreamSubscription', () => {
     mock.emitDone(TOPIC, A, 'success', false, undefined, 1)
     mock.emitChunk(TOPIC, A, textChunk('new'), undefined, 2, 1)
     const next = sub.register(A, undefined, 2)
-    firstAttach.resolve({ status: 'done' })
+    firstAttach.resolve({ status: 'done', finalMessages: {} })
     await tick()
     nextAttach.resolve({
       status: 'attached',
