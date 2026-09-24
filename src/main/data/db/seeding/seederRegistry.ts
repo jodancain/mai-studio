@@ -8,6 +8,7 @@ import { DefaultAssistantSeeder } from './seeders/defaultAssistantSeeder'
 import { LegacyFileCleanupPolicySeeder } from './seeders/legacyFileCleanupPolicySeeder'
 import { LocalModelSeeder } from './seeders/LocalModelSeeder'
 import { LongTextPastePreferenceUpgradeSeeder } from './seeders/longTextPastePreferenceUpgradeSeeder'
+import { MaiDefaultModelSeeder } from './seeders/maiDefaultModelSeeder'
 import { MiniAppSeeder } from './seeders/miniAppSeeder'
 import { PreferenceSeeder } from './seeders/preferenceSeeder'
 import { PresetProviderSeeder } from './seeders/presetProviderSeeder'
@@ -20,6 +21,9 @@ import { WebSearchPreferenceUpgradeSeeder } from './seeders/WebSearchPreferenceU
  *
  * Keep CherryAiDefaultModelSeeder before DefaultAssistantSeeder because the
  * seeded assistant references the CherryAI default model (FK to user_model).
+ *
+ * Keep MaiDefaultModelSeeder after PresetProviderSeeder (its rows FK to user_provider)
+ * and after CherryAiDefaultModelSeeder (it repoints the preferences that one writes).
  *
  * To add a new seeder: create an ISeeder class, add it to this array.
  * No changes to DbService needed.
@@ -37,6 +41,7 @@ export const seeders: ISeeder[] = [
   new PreferenceSeeder(),
   new TranslateLanguageSeeder(),
   new PresetProviderSeeder(),
+  new MaiDefaultModelSeeder(),
   new LocalModelSeeder(),
   new MiniAppSeeder(),
   new BuiltinMcpServerSeeder()

@@ -8,7 +8,7 @@
  */
 
 import { setupTestDatabase } from '@test-helpers/db'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { userProviderTable } from '@data/db/schemas/userProvider'
 import { PresetProviderSeeder } from '@data/db/seeding/seeders/presetProviderSeeder'
@@ -23,7 +23,8 @@ vi.mock('@cherrystudio/provider-registry/node', () => {
         { id: 'anthropic', name: 'Anthropic', endpointConfigs: {}, defaultChatEndpoint: null },
         { id: 'azure-openai', name: 'Azure OpenAI', endpointConfigs: {}, defaultChatEndpoint: null },
         { id: 'vertexai', name: 'Vertex AI', endpointConfigs: {}, defaultChatEndpoint: null },
-        { id: 'aws-bedrock', name: 'AWS Bedrock', endpointConfigs: {}, defaultChatEndpoint: null }
+        { id: 'aws-bedrock', name: 'AWS Bedrock', endpointConfigs: {}, defaultChatEndpoint: null },
+        { id: 'mai', name: 'mai studio', endpointConfigs: {}, defaultChatEndpoint: null }
       ]
     }
     getProvidersVersion() {
@@ -105,13 +106,14 @@ describe('PresetProviderSeeder.run — insert-only behavior', () => {
   })
 
   it('should not insert anything when all registry providers already exist', async () => {
-    const [openaiKey, anthropicKey, azureKey, vertexKey, bedrockKey] = generateOrderKeySequence(5)
+    const [openaiKey, anthropicKey, azureKey, vertexKey, bedrockKey, maiKey] = generateOrderKeySequence(6)
     await dbh.db.insert(userProviderTable).values([
       { providerId: 'openai', name: 'OpenAI', orderKey: openaiKey },
       { providerId: 'anthropic', name: 'Anthropic', orderKey: anthropicKey },
       { providerId: 'azure-openai', name: 'Azure OpenAI', orderKey: azureKey },
       { providerId: 'vertexai', name: 'Vertex AI', orderKey: vertexKey },
-      { providerId: 'aws-bedrock', name: 'AWS Bedrock', orderKey: bedrockKey }
+      { providerId: 'aws-bedrock', name: 'AWS Bedrock', orderKey: bedrockKey },
+      { providerId: 'mai', name: 'mai studio', orderKey: maiKey }
     ])
     const before = await dbh.db.select().from(userProviderTable)
 
@@ -120,5 +122,52 @@ describe('PresetProviderSeeder.run — insert-only behavior', () => {
 
     const after = await dbh.db.select().from(userProviderTable)
     expect(after).toHaveLength(before.length)
+  })
+})
+
+describe('PresetProviderSeeder.run — mai studio bundled credential', () => {
+  const dbh = setupTestDatabase()
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  const seedMai = async () => {
+    new PresetProviderSeeder().run(dbh.db)
+    const rows = await dbh.db.select().from(userProviderTable)
+    return rows.find((r) => r.providerId === 'mai')
+  }
+
+  it('seeds the build-env key as an enabled credential and enables the provider', async () => {
+    vi.stubEnv('MAIN_VITE_MAI_API_KEY', '  gateway-key  ')
+
+    const mai = await seedMai()
+
+    // Trimmed, because ApiKeyEntrySchema rejects blank keys and a stray newline from .env
+    // would otherwise be sent verbatim in the Authorization header.
+    expect(mai?.apiKeys).toMatchObject([{ key: 'gateway-key', isEnabled: true }])
+    expect(mai?.apiKeys?.[0].id).toBeTruthy()
+    expect(mai?.isEnabled).toBe(true)
+  })
+
+  it('leaves the provider uncredentialed and disabled when the build env carries no key', async () => {
+    vi.stubEnv('MAIN_VITE_MAI_API_KEY', '   ')
+    await dbh.db.delete(userProviderTable)
+
+    const mai = await seedMai()
+
+    expect(mai).toBeDefined()
+    expect(mai?.apiKeys ?? []).toEqual([])
+    expect(mai?.isEnabled).toBe(false)
+  })
+
+  it('never attaches the mai key to another provider', async () => {
+    vi.stubEnv('MAIN_VITE_MAI_API_KEY', 'gateway-key')
+    await dbh.db.delete(userProviderTable)
+
+    new PresetProviderSeeder().run(dbh.db)
+    const rows = await dbh.db.select().from(userProviderTable)
+
+    expect(rows.filter((r) => r.providerId !== 'mai').every((r) => (r.apiKeys ?? []).length === 0)).toBe(true)
   })
 })

@@ -7,6 +7,10 @@ export type DbOrTx = Pick<DbType, 'select' | 'update' | 'insert' | 'delete' | 'r
 
 export type SeedExecutionPolicy = 'run-on-change' | 'bootstrap-only'
 
+export interface SeedRunContext {
+  hasPreviouslyRun: boolean
+}
+
 export interface ISeeder {
   /** Unique identifier for seed journal tracking (stored as `seed:<name>` in app_state) */
   readonly name: string
@@ -21,6 +25,6 @@ export interface ISeeder {
    * (not even for seeders added in later releases).
    */
   readonly executionPolicy?: SeedExecutionPolicy
-  /** Execute the seed operation (called within a synchronous transaction by SeedRunner) */
-  run(db: DbType): void
+  /** Execute the seed operation; the seeder owns any required synchronous transaction. */
+  run(db: DbType, context?: SeedRunContext): void
 }

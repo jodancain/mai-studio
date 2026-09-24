@@ -1,8 +1,10 @@
+import { randomUUID } from 'node:crypto'
+
 import type { ProtoProviderConfig } from '@cherrystudio/provider-registry'
 import { RegistryLoader } from '@cherrystudio/provider-registry/node'
 import { providerService } from '@data/services/ProviderService'
 import { resolveRegistryPaths } from '@data/services/utils/registryDataPaths'
-import type { AuthConfig } from '@shared/data/types/provider'
+import type { ApiKeyEntry, AuthConfig } from '@shared/data/types/provider'
 
 import type { DbType, ISeeder } from '../../types'
 
@@ -34,12 +36,27 @@ function getSeedAuthConfig(providerId: string): AuthConfig | null {
   return null
 }
 
+/**
+ * mai studio is this fork's bundled gateway, so it ships pre-credentialed from the build env
+ * instead of waiting on UI setup. `batchUpsertTx` inserts only absent providers, so a key the
+ * user later edits in Settings is never re-seeded over.
+ */
+const MAI_PROVIDER_ID = 'mai'
+
+function getSeedApiKeys(providerId: string): ApiKeyEntry[] | undefined {
+  if (providerId !== MAI_PROVIDER_ID) return undefined
+  const key = import.meta.env.MAIN_VITE_MAI_API_KEY?.trim()
+  return key ? [{ id: randomUUID(), key, isEnabled: true }] : undefined
+}
+
 function toDbRow(p: ProtoProviderConfig) {
+  const apiKeys = getSeedApiKeys(p.id)
   return {
     providerId: p.id,
     presetProviderId: p.presetProviderId ?? p.id,
     name: p.name,
-    authConfig: getSeedAuthConfig(p.id)
+    authConfig: getSeedAuthConfig(p.id),
+    ...(apiKeys && { apiKeys, isEnabled: true })
   }
 }
 

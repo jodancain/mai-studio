@@ -46,7 +46,7 @@ describe('SeedRunner', () => {
     runner.runAll([seeder])
 
     expect(seeder.run).toHaveBeenCalledTimes(1)
-    expect(seeder.run).toHaveBeenCalledWith(dbh.db)
+    expect(seeder.run).toHaveBeenCalledWith(dbh.db, { hasPreviouslyRun: false })
 
     const [journal] = await dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'seed:test-seed'))
     expect(journal?.value).toMatchObject({ version: '1.0' })
@@ -77,6 +77,7 @@ describe('SeedRunner', () => {
     runner.runAll([seeder])
 
     expect(seeder.run).toHaveBeenCalledTimes(1)
+    expect(seeder.run).toHaveBeenCalledWith(dbh.db, { hasPreviouslyRun: true })
     const [journal] = await dbh.db.select().from(appStateTable).where(eq(appStateTable.key, 'seed:test-seed'))
     expect(journal?.value).toMatchObject({ version: '1.0' })
   })

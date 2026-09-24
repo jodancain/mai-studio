@@ -38,7 +38,7 @@ export class SeedRunner {
         continue
       }
 
-      seeder.run(this.db)
+      seeder.run(this.db, { hasPreviouslyRun: journal !== undefined })
 
       // eslint-disable-next-line no-restricted-syntax -- the onConflictDoUpdate here upserts the internal journal key (`seed:<name>`), not user state
       this.db

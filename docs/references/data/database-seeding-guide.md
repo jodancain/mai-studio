@@ -28,13 +28,13 @@ export interface ISeeder {
   readonly version: string     // Version string for change detection (property or getter)
   readonly description: string // Human-readable description for logging
   readonly executionPolicy?: SeedExecutionPolicy // Default: 'run-on-change' (see Execution Policies)
-  run(db: DbType): void          // Synchronous better-sqlite3 operation
+  run(db: DbType, context?: SeedRunContext): void // Synchronous better-sqlite3 operation
 }
 ```
 
 **`SeedRunner`** (`src/main/data/db/seeding/SeedRunner.ts`)
 
-Reads journal entries from `app_state` (key = `seed:<name>`), compares version strings, skips if they match, calls `seeder.run(db)` if they differ, then writes the journal entry after the seeder returns. Skips `bootstrap-only` seeders once the bootstrap window is closed (see [Execution Policies](#execution-policies)), and writes the window marker after the first fully-successful pass. The runner does not wrap seeders in a transaction; each seeder owns any transaction it needs.
+Reads journal entries from `app_state` (key = `seed:<name>`), compares version strings, skips if they match, calls `seeder.run(db, { hasPreviouslyRun })` if they differ, then writes the journal entry after the seeder returns. `hasPreviouslyRun` reports whether this seeder already has a journal entry, allowing upgrade repairs to preserve user-deleted seed data. Seeders must use this execution context instead of reading the runner's private journal. Skips `bootstrap-only` seeders once the bootstrap window is closed (see [Execution Policies](#execution-policies)), and writes the window marker after the first fully-successful pass. The runner does not wrap seeders in a transaction; each seeder owns any transaction it needs.
 
 **`seeding/seederRegistry.ts`** (`src/main/data/db/seeding/seederRegistry.ts`)
 
