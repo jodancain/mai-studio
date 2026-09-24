@@ -5,6 +5,7 @@
   "bracketSpacing": true,
   "endOfLine": "lf",
   "ignorePatterns": [
+    ".context/**",
     "**/*.md",
     ".claude/**",
     ".conductor/**",

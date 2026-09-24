@@ -6,6 +6,7 @@
   },
   "globals": {},
   "ignorePatterns": [
+    ".context/**",
     "node_modules/**",
     "build/**",
     "dist/**",
