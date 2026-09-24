@@ -65,8 +65,11 @@ export const systemHandlers: IpcHandlersFor<typeof systemRequestSchemas> = {
   'system.shell.open_path': async (path) => {
     await shell.openPath(path)
   },
-  'system.shell.open_external_website': async (url) => {
-    if (isSafeExternalUrl(url)) await shell.openExternal(url)
+  'system.shell.open_external_website': async (input) => {
+    const { url, options } = typeof input === 'string' ? { url: input, options: undefined } : input
+    if (!isSafeExternalUrl(url)) throw new Error('Blocked external URL')
+    if (options) await shell.openExternal(url, options)
+    else await shell.openExternal(url)
   },
   'system.shell.open_website': async (url) => {
     if (!isSafeExternalUrl(url)) {

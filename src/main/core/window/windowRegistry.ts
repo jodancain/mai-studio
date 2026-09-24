@@ -84,10 +84,10 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
-        webSecurity: false,
+        sandbox: true,
+        webSecurity: true,
         webviewTag: true,
-        allowRunningInsecureContent: true,
+        allowRunningInsecureContent: false,
         backgroundThrottling: false
         // zoomFactor depends on PreferenceService → injected via args.options
       }
@@ -121,7 +121,7 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
         contextIsolation: true,
         nodeIntegration: false,
         sandbox: true,
-        webSecurity: false
+        webSecurity: true
       }
     },
     behavior: {
@@ -232,8 +232,8 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
         }
       },
       webPreferences: {
-        sandbox: false,
-        webSecurity: false,
+        sandbox: true,
+        webSecurity: true,
         webviewTag: true,
         // REQUIRED: SubWindow hosts streaming LLM responses and WebSocket heartbeats;
         // Chromium's background-tab throttling would freeze the UI for seconds after
@@ -303,8 +303,8 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
-        webSecurity: false,
+        sandbox: true,
+        webSecurity: true,
         webviewTag: true
       }
     },
@@ -406,7 +406,7 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
+        sandbox: true,
         devTools: isDev
       }
     },
@@ -466,7 +466,7 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: false,
+        sandbox: true,
         devTools: true
       }
     },
@@ -564,9 +564,8 @@ export const WINDOW_TYPE_REGISTRY: Partial<Record<WindowType, WindowTypeMetadata
       webPreferences: {
         contextIsolation: true,
         nodeIntegration: false,
-        // Required by every window on the shared preload: that bundle is code-split, and a
-        // sandboxed preload cannot require its chunks — it dies with "module not found".
-        sandbox: false,
+        // Preload entries bundle their dependencies independently for sandbox compatibility.
+        sandbox: true,
         devTools: true,
         // Declared on WebPreferences, NOT at the constructor-options root. Off because a red
         // squiggle under the text-annotation input would be drawn into the annotation layer.

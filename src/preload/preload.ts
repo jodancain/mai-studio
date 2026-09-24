@@ -1,6 +1,6 @@
 import { electronAPI } from '@electron-toolkit/preload'
 import type { OpenDialogOptions } from 'electron'
-import { contextBridge, ipcRenderer, shell, webUtils } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { CreateDirectoryOptions } from 'webdav'
 
 import type { DataApiDataChangeEffect, DataRequest, DataResponse } from '@shared/data/api/types'
@@ -13,6 +13,7 @@ import type {
 import type { FileEntry } from '@shared/data/types/file'
 import type { FileMetadata } from '@shared/data/types/legacyFile'
 import type { TraceDataCursor, TraceDataResult } from '@shared/data/types/trace'
+import { IpcError, type IpcResult } from '@shared/ipc/errors/IpcError'
 import { IpcChannel } from '@shared/IpcChannel'
 import type { BackupResult, LocalBackupConfig, S3Config, WebDavConfig } from '@shared/types/backup'
 import type { MenuAnchor, NativePopupMenuModel, NativePopupMenuResult } from '@shared/types/command'
@@ -164,7 +165,7 @@ const api = {
       ipcRenderer.invoke(IpcChannel.Aes_Decrypt, encryptedData, iv, secretKey)
   },
   shell: {
-    openExternal: (url: string, options?: Electron.OpenExternalOptions) => {
+    openExternal: async (url: string, options?: Electron.OpenExternalOptions): Promise<void> => {
       // Defense-in-depth: validate URL scheme before forwarding to shell.openExternal
       const ALLOWED_PROTOCOLS = ['http:', 'https:', 'mailto:', 'obsidian:']
       try {
@@ -175,7 +176,11 @@ const api = {
       } catch {
         return Promise.reject(new Error('Blocked openExternal for invalid URL'))
       }
-      return shell.openExternal(url, options)
+      const result = (await ipcApi.request(
+        'system.shell.open_external_website',
+        options ? { url, options } : url
+      )) as IpcResult<void>
+      if (!result.ok) throw IpcError.fromJSON(result.error)
     }
   },
   copilot: {

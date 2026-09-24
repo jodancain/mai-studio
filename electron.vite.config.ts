@@ -197,6 +197,8 @@ export default defineConfig({
     },
     build: {
       sourcemap: sentrySourceMap,
+      isolatedEntries: true,
+      externalizeDeps: false,
       rolldownOptions: {
         // Unlike renderer which auto-discovers entries from HTML files,
         // preload requires explicit entry point configuration for multiple scripts
@@ -222,6 +224,18 @@ export default defineConfig({
       __APP_RELEASE_VERSION__: JSON.stringify(pkg.version)
     },
     plugins: [
+      {
+        name: 'mai-production-csp',
+        transformIndexHtml(html) {
+          if (!isProd) return html
+          return html
+            .replace(/script-src [^;]+;/g, "script-src 'self' 'wasm-unsafe-eval';")
+            .replace(
+              /default-src 'self';/g,
+              "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none';"
+            )
+        }
+      },
       uiContractPlugin(),
       tanstackRouter({
         target: 'react',
