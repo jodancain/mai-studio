@@ -40,6 +40,14 @@ vi.mock('@main/utils/systemInfo', () => ({
   getClientId: vi.fn(() => 'test-client-id')
 }))
 
+// This fork ships UPSTREAM_SERVICES_ENABLED=false, so onAllReady never schedules a check.
+// The cadence contract below is still the one to hold if that flag is ever flipped, so
+// exercise it with the flag on rather than deleting the coverage.
+vi.mock('@shared/utils/constants', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  UPSTREAM_SERVICES_ENABLED: true
+}))
+
 vi.mock('electron', () => ({
   app: {
     isPackaged: true,

@@ -1,14 +1,23 @@
 import type { UpdateInfo } from 'builder-util-runtime'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type * as Constants from '@shared/utils/constants'
+
 const { appEditionState, netFetchMock, releaseNotesCheckMock, releaseNotesUpdaterInstances, trackAppUpdateMock } =
   vi.hoisted(() => ({
-    appEditionState: { current: 'global' },
+    appEditionState: { current: 'global', upstreamEnabled: true },
     netFetchMock: vi.fn(),
     releaseNotesCheckMock: vi.fn(),
     releaseNotesUpdaterInstances: [] as Array<Record<string, unknown>>,
     trackAppUpdateMock: vi.fn()
   }))
+
+vi.mock('@shared/utils/constants', async (importOriginal) => ({
+  ...(await importOriginal<typeof Constants>()),
+  get UPSTREAM_SERVICES_ENABLED() {
+    return appEditionState.upstreamEnabled
+  }
+}))
 
 vi.mock('@logger', () => ({
   loggerService: {
@@ -140,6 +149,7 @@ describe('AppUpdaterService', () => {
     vi.mocked(autoUpdater.checkForUpdates).mockResolvedValue(null)
     netFetchMock.mockReset()
     appEditionState.current = 'global'
+    appEditionState.upstreamEnabled = true
     releaseNotesCheckMock.mockReset().mockResolvedValue(null)
     releaseNotesUpdaterInstances.length = 0
     autoUpdater.requestHeaders = {}
@@ -147,6 +157,21 @@ describe('AppUpdaterService', () => {
     autoUpdater.allowDowngrade = false
     autoUpdater.disableDifferentialDownload = false
     appUpdater = new AppUpdaterService()
+  })
+
+  it('blocks every upstream update entry in the internal release', async () => {
+    appEditionState.upstreamEnabled = false
+    expect(await appUpdater.queryUpdateAvailability()).toMatchObject({ status: 'unsupported' })
+    expect(await appUpdater.getLatestReleaseNotes()).toBeNull()
+    expect(await appUpdater.getReleaseHistory()).toBeNull()
+    await appUpdater.checkForUpdates()
+    appUpdater.quitAndInstall()
+    await new Promise((resolve) => setImmediate(resolve))
+    expect(netFetchMock).not.toHaveBeenCalled()
+    expect(releaseNotesCheckMock).not.toHaveBeenCalled()
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled()
+    expect(autoUpdater.downloadUpdate).not.toHaveBeenCalled()
+    expect(autoUpdater.quitAndInstall).not.toHaveBeenCalled()
   })
 
   describe('read-only update query', () => {

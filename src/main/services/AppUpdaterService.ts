@@ -16,7 +16,7 @@ import { generateUserAgent, getClientId } from '@main/utils/systemInfo'
 import type { RetryPolicy } from '@shared/data/api/schemas/jobs'
 import { UpgradeChannel } from '@shared/data/preference/preferenceTypes'
 import type { AppEdition } from '@shared/types/appEdition'
-import { APP_NAME } from '@shared/utils/constants'
+import { APP_NAME, UPSTREAM_SERVICES_ENABLED } from '@shared/utils/constants'
 import {
   hasMultiLanguageReleaseNotes,
   localizeReleaseNotes,
@@ -136,7 +136,9 @@ export class AppUpdaterService extends BaseService {
 
     // Development builds skip automatic checks but still support manual checks.
     // Portable builds do not perform update checks.
-    if (!app.isPackaged || this.isPortable()) {
+    // This fork never schedules one: the configured feed serves upstream Cherry Studio
+    // releases, so an applied update would replace this build with upstream's.
+    if (!app.isPackaged || this.isPortable() || !UPSTREAM_SERVICES_ENABLED) {
       return
     }
     this.scheduleNextUpdateCheck(INITIAL_CHECK_DELAY_MS)
@@ -251,7 +253,7 @@ export class AppUpdaterService extends BaseService {
     | { status: 'current'; currentVersion: string }
     | { status: 'available'; currentVersion: string; version: string }
   > {
-    if (this.isPortable()) return { status: 'unsupported' }
+    if (!UPSTREAM_SERVICES_ENABLED || this.isPortable()) return { status: 'unsupported' }
     const { currentVersion, updateChannel, updateHeaders } = await this.getUpdateRequest()
     const updater = new ReleaseNotesUpdater()
     updater.logger = logger as Logger
@@ -269,6 +271,7 @@ export class AppUpdaterService extends BaseService {
   }
 
   public async getLatestReleaseNotes(): Promise<ReleaseNotesEntry | null> {
+    if (!UPSTREAM_SERVICES_ENABLED) return null
     try {
       const { updateChannel, updateHeaders } = await this.getUpdateRequest()
       const updater = new ReleaseNotesUpdater()
@@ -298,6 +301,7 @@ export class AppUpdaterService extends BaseService {
   }
 
   public async getReleaseHistory(): Promise<ReleaseNotesEntry[] | null> {
+    if (!UPSTREAM_SERVICES_ENABLED) return null
     const [history, latestRelease] = await Promise.all([this.fetchReleaseHistory(), this.getLatestReleaseNotes()])
 
     if (!history) {
@@ -328,6 +332,7 @@ export class AppUpdaterService extends BaseService {
    * broadcast (see `registerAutoUpdaterListeners`), not the return value.
    */
   private async performUpdateCheck() {
+    if (!UPSTREAM_SERVICES_ENABLED) return { currentVersion: app.getVersion(), updateInfo: null }
     void application.get('AnalyticsService').trackAppUpdate()
 
     if (this.isPortable()) {
@@ -409,6 +414,7 @@ export class AppUpdaterService extends BaseService {
   }
 
   public quitAndInstall() {
+    if (!UPSTREAM_SERVICES_ENABLED) return
     application.markQuitting()
     setImmediate(() => autoUpdater.quitAndInstall(true, true))
   }

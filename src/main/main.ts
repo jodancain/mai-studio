@@ -27,13 +27,15 @@ import { CHERRY_MEDIA_SCHEME_DECLARATION } from '@main/services/mediaProtocol'
 import { initSentry } from '@main/services/sentry'
 import { runUserDataRelocation } from '@main/services/userDataRelocation'
 import { getApplicationId } from '@main/utils/appEdition'
+import { UPSTREAM_SERVICES_ENABLED } from '@shared/utils/constants'
 
 // should be the first to resolveUserDataLocation()
 resolveUserDataLocation()
 requireSingleInstance()
 configureChromiumFlags()
 initCrashTelemetry()
-initSentry()
+// The bundled DSN is Cherry Studio's Sentry project; this fork has none of its own.
+if (UPSTREAM_SERVICES_ENABLED) initSentry()
 // Privileged schemes must be declared before the app is ready, and only ONCE per
 // process — startApp() itself awaits app.whenReady(), so this cannot move in there.
 protocol.registerSchemesAsPrivileged([CHERRY_MEDIA_SCHEME_DECLARATION, MINI_APP_SCHEME_DECLARATION])

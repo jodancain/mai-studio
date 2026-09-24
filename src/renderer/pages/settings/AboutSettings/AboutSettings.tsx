@@ -39,6 +39,7 @@ import { toast } from '@renderer/services/toast'
 import { openExternalWebsite } from '@renderer/services/website'
 import { cn } from '@renderer/utils/style'
 import { UpgradeChannel } from '@shared/data/preference/preferenceTypes'
+import { UPSTREAM_SERVICES_ENABLED } from '@shared/utils/constants'
 import { DOCTOR_OPEN_QUERY_PARAM, type DoctorPanel } from '@shared/utils/doctor'
 
 const AboutSettings: FC = () => {
@@ -82,6 +83,7 @@ const AboutSettings: FC = () => {
 
   const onCheckUpdate = debounce(
     async () => {
+      if (!UPSTREAM_SERVICES_ENABLED) return
       if (appUpdateState.checking || appUpdateState.downloading) {
         return
       }
@@ -112,7 +114,7 @@ const AboutSettings: FC = () => {
 
   const mailto = async () => {
     const email = 'support@cherry-ai.com'
-    const subject = 'Cherry Studio Feedback'
+    const subject = 'mai studio Feedback'
     const version = (await ipcApi.request('app.get_info')).version
     const platform = window.electron.process.platform
     const url = `mailto:${email}?subject=${subject}&body=%0A%0AVersion: ${version} | Platform: ${platform}`
@@ -247,12 +249,15 @@ const AboutSettings: FC = () => {
             </button>
 
             <div className="flex min-h-18 flex-col items-start justify-center">
-              <div className="mb-1 text-lg font-bold text-foreground">Cherry Studio</div>
+              <div className="mb-1 text-lg font-bold text-foreground">mai studio</div>
               <div className="text-muted-foreground text-sm">{t('settings.about.description')}</div>
               <button
                 type="button"
                 aria-label={t('settings.about.releases.title')}
-                onClick={() => onOpenWebsite('https://github.com/CherryHQ/cherry-studio/releases')}
+                disabled={!UPSTREAM_SERVICES_ENABLED}
+                onClick={() =>
+                  UPSTREAM_SERVICES_ENABLED && onOpenWebsite('https://github.com/CherryHQ/cherry-studio/releases')
+                }
                 className="mt-1.5">
                 <Badge className="cursor-pointer rounded-md border-primary/20 bg-primary/10 px-1.5 py-0 text-[11px] leading-4 text-primary transition-colors hover:bg-primary/15">
                   v{version}
@@ -261,7 +266,7 @@ const AboutSettings: FC = () => {
             </div>
           </div>
 
-          {!isPortable && (
+          {!isPortable && UPSTREAM_SERVICES_ENABLED && (
             <div className="flex shrink-0 items-center justify-end">
               <Button
                 size="sm"
@@ -284,7 +289,10 @@ const AboutSettings: FC = () => {
           )}
         </div>
 
-        {!isPortable && (
+        {!UPSTREAM_SERVICES_ENABLED && (
+          <p className="text-muted-foreground text-sm">{t('settings.about.manual_update_only')}</p>
+        )}
+        {!isPortable && UPSTREAM_SERVICES_ENABLED && (
           <>
             <Divider className="my-3" />
             <SettingRow id="setting-about-auto-check-update" className="scroll-mt-6 gap-3">

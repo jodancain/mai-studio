@@ -19,6 +19,7 @@ import { writeProviderRegistrySnapshot } from '@main/services/providerRegistrySn
 import { regionService } from '@main/services/RegionService'
 import { generateUserAgent } from '@main/utils/systemInfo'
 import type { DataApiDataChangeEffect } from '@shared/data/api/types'
+import { UPSTREAM_SERVICES_ENABLED } from '@shared/utils/constants'
 
 const logger = loggerService.withContext('ProviderRegistryUpdaterService')
 
@@ -84,7 +85,11 @@ export class ProviderRegistryUpdaterService extends BaseService {
     // Dev/test never auto-download — an override under userData would silently
     // shadow the source catalog a developer just regenerated. `check()` is still
     // callable directly for manual/test runs.
-    if (!app.isPackaged) return
+    //
+    // This fork never auto-downloads either: a remote snapshot replaces
+    // provider-models.json wholesale, and the fork-only `mai` rows exist only in the
+    // bundled copy — applying one would silently empty that provider.
+    if (!app.isPackaged || !UPSTREAM_SERVICES_ENABLED) return
 
     this.registerInterval(() => this.check(), CHECK_INTERVAL_MS)
 
