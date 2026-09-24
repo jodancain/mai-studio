@@ -17,7 +17,7 @@ import NarrowLayout from '../layout/NarrowLayout'
 import { PartsProvider, usePartsMap } from './blocks/MessagePartsContext'
 import { MessageListInitialLoading } from './layout/MessageListLoading'
 import { MessagesContainer } from './layout/shared'
-import MessageAnchorLine from './list/MessageAnchorLine'
+import MessageAnchorLine, { hasMessageAnchorRail } from './list/MessageAnchorLine'
 import { MessageCaptureLeaseProvider, useMessageCaptureLeases } from './list/MessageCaptureLeaseContext'
 import MessageGroup from './list/MessageGroup'
 import { MessageListSearch } from './list/MessageListSearch'
@@ -448,7 +448,11 @@ const MessageList = ({ enableSearch = false }: MessageListProps) => {
     activeMessageOutlineFrameRef.current = null
   }, [])
 
-  const shouldTrackAnchorPosition = messageNavigation === 'anchor'
+  const isAnchorNavigation = messageNavigation === 'anchor'
+  const shouldTrackAnchorPosition = useMemo(
+    () => isAnchorNavigation && hasMessageAnchorRail(anchorMessages),
+    [anchorMessages, isAnchorNavigation]
+  )
 
   // Anchor rail counterpart of the outline tracker: resolve the message near
   // the viewport top (any role) so the rail can darken the current turn's tick.
@@ -495,6 +499,19 @@ const MessageList = ({ enableSearch = false }: MessageListProps) => {
   }, [messageById, shouldTrackAnchorPosition])
   const updateActiveAnchorMessageRef = useRef(updateActiveAnchorMessage)
   updateActiveAnchorMessageRef.current = updateActiveAnchorMessage
+  const activeAnchorMessageFrameRef = useRef<number | null>(null)
+  const requestActiveAnchorMessageUpdate = useCallback(() => {
+    if (activeAnchorMessageFrameRef.current !== null) return
+    activeAnchorMessageFrameRef.current = requestAnimationFrame(() => {
+      activeAnchorMessageFrameRef.current = null
+      updateActiveAnchorMessageRef.current()
+    })
+  }, [])
+  const cancelActiveAnchorMessageUpdate = useCallback(() => {
+    if (activeAnchorMessageFrameRef.current === null) return
+    cancelAnimationFrame(activeAnchorMessageFrameRef.current)
+    activeAnchorMessageFrameRef.current = null
+  }, [])
 
   const loadMoreMessages = useCallback(() => {
     if (!hasOlder || isLoadingMoreRef.current || !loadOlder) return
@@ -695,14 +712,17 @@ const MessageList = ({ enableSearch = false }: MessageListProps) => {
 
   useEffect(() => {
     if (!shouldTrackAnchorPosition) {
+      cancelActiveAnchorMessageUpdate()
       setActiveAnchorMessageId((current) => (current ? null : current))
       return
     }
-    updateActiveAnchorMessage()
-  }, [groupedMessages, shouldTrackAnchorPosition, updateActiveAnchorMessage])
+    requestActiveAnchorMessageUpdate()
+  }, [cancelActiveAnchorMessageUpdate, groupedMessages, requestActiveAnchorMessageUpdate, shouldTrackAnchorPosition])
+
+  useEffect(() => cancelActiveAnchorMessageUpdate, [cancelActiveAnchorMessageUpdate])
 
   useEffect(() => {
-    if (!shouldTrackAnchorPosition) {
+    if (!isAnchorNavigation) {
       setRailGutterPx(0)
       return
     }
@@ -722,25 +742,32 @@ const MessageList = ({ enableSearch = false }: MessageListProps) => {
     const resizeObserver = new ResizeObserver(updateRailGutter)
     resizeObserver.observe(scrollElement)
 
-    let frame: number | null = null
-    const handleAnchorUpdate = () => {
-      if (frame !== null) return
-      frame = requestAnimationFrame(() => {
-        frame = null
-        updateActiveAnchorMessageRef.current()
-      })
-    }
+    // The layout owner survives topic switches, so preserve its width-derived gutter.
+    return () => resizeObserver.disconnect()
+  }, [data.isInitialLoading, data.listKey, isAnchorNavigation, setRailGutterPx, topic.id])
+
+  useEffect(() => {
+    if (!shouldTrackAnchorPosition) return
+    const scrollElement = messageListRef.current?.getScrollElement()
+    if (!scrollElement) return
+
+    const handleAnchorUpdate = requestActiveAnchorMessageUpdate
     scrollElement.addEventListener('scroll', handleAnchorUpdate, { passive: true })
     window.addEventListener('resize', handleAnchorUpdate)
 
-    // The layout owner survives topic switches, so preserve its width-derived gutter.
     return () => {
-      resizeObserver.disconnect()
-      if (frame !== null) cancelAnimationFrame(frame)
+      cancelActiveAnchorMessageUpdate()
       scrollElement.removeEventListener('scroll', handleAnchorUpdate)
       window.removeEventListener('resize', handleAnchorUpdate)
     }
-  }, [data.isInitialLoading, data.listKey, setRailGutterPx, shouldTrackAnchorPosition, topic.id])
+  }, [
+    cancelActiveAnchorMessageUpdate,
+    data.isInitialLoading,
+    data.listKey,
+    requestActiveAnchorMessageUpdate,
+    shouldTrackAnchorPosition,
+    topic.id
+  ])
 
   useEffect(() => {
     return bindRuntime?.({

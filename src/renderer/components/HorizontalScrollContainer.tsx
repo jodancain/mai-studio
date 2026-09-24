@@ -79,12 +79,12 @@ const HorizontalScrollContainer: React.FC<HorizontalScrollContainerProps> = ({
     const scrollElement = scrollRef.current
     if (!scrollElement) return
 
-    checkScrollability()
-
     const handleScroll = () => {
       checkScrollability()
     }
 
+    // The observer supplies the initial measurement after layout, avoiding a
+    // forced full-chat layout when terminal message actions first mount.
     const resizeObserver = new ResizeObserver(checkScrollability)
     resizeObserver.observe(scrollElement)
 

@@ -156,11 +156,6 @@ vi.mock('../layout/MessageListLoading', () => ({
   MessageListInitialLoading: () => <div data-testid="message-list-loading" />
 }))
 
-vi.mock('../list/MessageAnchorLine', () => ({
-  __esModule: true,
-  default: () => null
-}))
-
 vi.mock('../list/MessageGroup', async () => {
   const React = await import('react')
   const { useHtmlArtifactPopupContext } = await import('@renderer/components/chat/HtmlArtifactPopupContext')
@@ -577,6 +572,77 @@ describe('MessageList', () => {
     view.unmount()
 
     expect(chatLayoutModeMock.setRailGutterPx).not.toHaveBeenCalled()
+  })
+
+  it('measures only visible anchor rails and reconciles the latest reading position once per frame', async () => {
+    const frames = new Map<number, FrameRequestCallback>()
+    let frameId = 0
+    const requestFrame = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.set(++frameId, callback)
+      return frameId
+    })
+    const cancelFrame = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
+      frames.delete(id)
+    })
+    const tick = () => {
+      const pending = [...frames.values()]
+      frames.clear()
+      act(() => pending.forEach((callback) => callback(0)))
+    }
+    const scroller = messageVirtualListMocks.scrollElement!
+    document.body.append(scroller)
+    const measureViewport = vi.fn(() => new DOMRect(0, 0, 800, 400))
+    scroller.getBoundingClientRect = measureViewport
+    Object.defineProperties(scroller, {
+      clientWidth: { value: 820 },
+      clientHeight: { value: 400 },
+      scrollHeight: { value: 1000 }
+    })
+    chatLayoutModeMock.railGutterPx = 24
+    const messages = Array.from({ length: 5 }, (_, index) => createMessage(`user-${index + 1}`, 'user'))
+    const tree = (items: MessageListItem[]) => (
+      <MessageListProvider value={createValue(items, { messageNavigation: 'anchor' })}>
+        <MessageList />
+      </MessageListProvider>
+    )
+    const view = render(tree(messages.slice(0, 4)), { container: scroller })
+
+    try {
+      tick()
+      fireEvent.scroll(scroller)
+      tick()
+      expect(measureViewport).not.toHaveBeenCalled()
+      expect(screen.queryByRole('button', { name: 'Jump to turn 1' })).not.toBeInTheDocument()
+
+      view.rerender(tree(messages))
+      messages.forEach((message, index) => {
+        screen.getByTestId(`message-node-${message.id}`).getBoundingClientRect = () =>
+          new DOMRect(0, index * 200 - scroller.scrollTop, 800, 200)
+      })
+      scroller.scrollTop = 200
+      fireEvent.scroll(scroller)
+      scroller.scrollTop = 400
+      fireEvent.scroll(scroller)
+      expect(measureViewport).not.toHaveBeenCalled()
+      tick()
+      expect(measureViewport).toHaveBeenCalledTimes(1)
+      expect(screen.getByRole('button', { name: 'Jump to turn 3' })).toHaveAttribute('aria-current', 'true')
+      expect(scroller.scrollTop).toBe(400)
+
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Jump to turn 2' }))
+      expect(scrollToKey).toHaveBeenCalledWith('useruser-2', 'start')
+
+      measureViewport.mockClear()
+      view.rerender(tree(messages.slice(0, 4)))
+      fireEvent.scroll(scroller)
+      tick()
+      expect(measureViewport).not.toHaveBeenCalled()
+    } finally {
+      view.unmount()
+      scroller.remove()
+      requestFrame.mockRestore()
+      cancelFrame.mockRestore()
+    }
   })
 
   it('keeps historical groups sealed while only the live tail changes', () => {

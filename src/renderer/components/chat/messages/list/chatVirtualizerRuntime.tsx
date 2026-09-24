@@ -789,9 +789,21 @@ export function useChatVirtualizerRuntime<T>({
     const content = contentRef.current
     if (!content || typeof MutationObserver === 'undefined') return
 
-    const observer = new MutationObserver(() => autoStick.onContentSizeChange())
+    let frame: number | undefined
+    const observer = new MutationObserver(() => {
+      if (frame !== undefined) return
+      // Several streaming commits can precede one paint; measure their final
+      // layout once rather than forcing layout after every DOM mutation.
+      frame = requestAnimationFrame(() => {
+        frame = undefined
+        autoStick.onContentSizeChange()
+      })
+    })
     observer.observe(content, { childList: true, characterData: true, subtree: true })
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      if (frame !== undefined) cancelAnimationFrame(frame)
+    }
   }, [autoStick])
 
   // Initial scroll on mount is owned by `useScrollPositionMemory` above: it

@@ -74,6 +74,16 @@ const RAIL_FADE_PX = 44
 const RAIL_MIN_TURNS = 5
 const EMPTY_MESSAGE_PARTS: CherryMessagePart[] = []
 
+export function hasMessageAnchorRail(messages: readonly AnchorMessage[]): boolean {
+  let turns = 0
+  for (const message of messages) {
+    if (message.isContextBoundary) continue
+    if (message.role === 'user' || turns === 0) turns++
+    if (turns >= RAIL_MIN_TURNS) return true
+  }
+  return false
+}
+
 const tickTransitionClassName =
   'transition-[width,height,background-color] duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] [will-change:width]'
 
@@ -243,7 +253,7 @@ const MessageAnchorLine = memo(function MessageAnchorLine({
   // Few messages don't need anchoring. Only the rail is gated — the content's
   // gutter (MessageList) follows width alone, so when the turn count crosses
   // this threshold the rail fades into space that already exists, with no jump.
-  const hasRail = turns.length >= RAIL_MIN_TURNS
+  const hasRail = useMemo(() => hasMessageAnchorRail(messages), [messages])
 
   // Keep the strip's reading anchor stable across async page loads:
   // • on entry, start at the bottom — the user enters at the newest turn;

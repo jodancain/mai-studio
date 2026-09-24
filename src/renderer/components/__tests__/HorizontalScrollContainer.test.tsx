@@ -51,6 +51,23 @@ describe('HorizontalScrollContainer', () => {
 
   afterEach(() => {
     globalThis.ResizeObserver = originalResizeObserver
+    vi.restoreAllMocks()
+  })
+
+  it('waits for browser layout before measuring newly mounted overflow', () => {
+    // Mount-time geometry reads forced a full chat layout during stream finalization.
+    const clientWidth = vi.spyOn(Element.prototype, 'clientWidth', 'get').mockReturnValue(100)
+    vi.spyOn(Element.prototype, 'scrollWidth', 'get').mockReturnValue(300)
+
+    render(
+      <HorizontalScrollContainer>
+        <span>Message actions</span>
+      </HorizontalScrollContainer>
+    )
+
+    expect(clientWidth).not.toHaveBeenCalled()
+    triggerResizeObserver()
+    expect(document.querySelector('.scroll-right-button')).toBeInTheDocument()
   })
 
   it('renders the scroll button above the scroll content layer', () => {

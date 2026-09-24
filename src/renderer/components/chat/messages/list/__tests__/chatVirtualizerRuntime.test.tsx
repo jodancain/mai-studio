@@ -1451,7 +1451,8 @@ describe('useChatVirtualizerRuntime', () => {
     }
   })
 
-  it('follows streaming text mutations before resize measurement catches up', async () => {
+  it('coalesces streaming mutations into one bottom reconciliation before the next paint', async () => {
+    const raf = installQueuedAnimationFrame()
     let runtime: ChatVirtualizerRuntime<string> | undefined
     let handle: MessageVirtualListHandle | null = null
     const handleRef: Ref<MessageVirtualListHandle> = (nextHandle) => {
@@ -1475,23 +1476,38 @@ describe('useChatVirtualizerRuntime', () => {
         scrollTop = value
       }
     })
-    setElementMetric(scroller, 'scrollHeight', () => scrollHeight)
+    const readScrollHeight = vi.fn(() => scrollHeight)
+    setElementMetric(scroller, 'scrollHeight', readScrollHeight)
     setElementMetric(scroller, 'clientHeight', () => 400)
 
     act(() => handle!.scrollToBottom())
     expect(scrollTop).toBe(600)
+    readScrollHeight.mockClear()
 
-    scrollHeight = 1023
-    view.rerender(
-      <RuntimeDomProbe
-        content="streamed frame"
-        items={['message-a']}
-        handleRef={handleRef}
-        onRuntime={(nextRuntime) => (runtime = nextRuntime)}
-      />
-    )
+    try {
+      for (const content of ['streamed frame', 'final streamed frame']) {
+        scrollHeight += 23
+        await act(async () => {
+          view.rerender(
+            <RuntimeDomProbe
+              content={content}
+              items={['message-a']}
+              handleRef={handleRef}
+              onRuntime={(nextRuntime) => (runtime = nextRuntime)}
+            />
+          )
+        })
+      }
 
-    await vi.waitFor(() => expect(scrollTop).toBe(623))
+      // DOM commits must not each force a synchronous chat layout.
+      expect(readScrollHeight).not.toHaveBeenCalled()
+      raf.tick()
+      expect(scrollTop).toBe(646)
+      expect(readScrollHeight).toHaveBeenCalledTimes(1)
+    } finally {
+      view.unmount()
+      raf.restore()
+    }
   })
 
   it('keeps following when a message is appended at the live bottom', () => {
