@@ -214,6 +214,27 @@ describe('ShortcutSettings shortcut recorder', () => {
     expect(recorder).not.toBeInstanceOf(HTMLTextAreaElement)
   })
 
+  it.each(['quick_assistant.toggle', 'selection.toggle', 'selection.capture_text'] as const)(
+    'preserves the saved binding for unavailable command %s',
+    async (command) => {
+      const saved = makeShortcut({ command, binding: ['CommandOrControl', 'E'], enabled: true })
+      shortcutsMock.shortcuts = [saved]
+      renderShortcutSettings()
+
+      expect(screen.getByText('release.core_unavailable')).toBeVisible()
+      expect(screen.getByRole('button', { name: 'switch' })).toBeDisabled()
+      fireEvent.click(screen.getByText('E'))
+      expect(screen.queryByRole('button', { name: 'settings.shortcuts.press_shortcut' })).not.toBeInTheDocument()
+      const user = userEvent.setup()
+      await user.click(screen.getByRole('button', { name: 'common.more' }))
+      await user.click(screen.getByRole('menuitem', { name: 'settings.shortcuts.all_disable' }))
+
+      expect(shortcutsMock.updatePreference).not.toHaveBeenCalled()
+      expect(preferenceServiceSetMultipleMock).not.toHaveBeenCalled()
+      expect(saved.preference).toEqual({ binding: ['CommandOrControl', 'E'], enabled: true })
+    }
+  )
+
   it('records physical key shortcuts and stops propagation while recording', async () => {
     const parentKeyDown = vi.fn()
     renderShortcutSettings(parentKeyDown)

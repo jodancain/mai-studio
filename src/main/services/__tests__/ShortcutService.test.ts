@@ -2,6 +2,8 @@ import { EventEmitter } from 'events'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@shared/utils/releasePolicy', () => ({ isCoreReleaseCommandEnabled: vi.fn(() => true) }))
+
 vi.mock('@logger', () => ({
   loggerService: {
     withContext: () => ({
@@ -88,6 +90,8 @@ import { MockMainPreferenceServiceUtils } from '@test-mocks/main/PreferenceServi
 
 import { WindowType } from '@main/core/window/types'
 import { IpcChannel } from '@shared/IpcChannel'
+import type * as ReleasePolicyModule from '@shared/utils/releasePolicy'
+import { isCoreReleaseCommandEnabled } from '@shared/utils/releasePolicy'
 
 import { ShortcutService } from '../ShortcutService'
 
@@ -158,6 +162,7 @@ describe('ShortcutService', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(isCoreReleaseCommandEnabled).mockReturnValue(true)
     MockMainPreferenceServiceUtils.resetMocks()
 
     mainWindow = new MockBrowserWindow()
@@ -173,6 +178,31 @@ describe('ShortcutService', () => {
     globalShortcutMock.register.mockReturnValue(true)
 
     service = new ShortcutService()
+  })
+
+  it('keeps saved desktop assistant shortcuts unregistered in the core release', async () => {
+    const policy = await vi.importActual<typeof ReleasePolicyModule>('@shared/utils/releasePolicy')
+    vi.mocked(isCoreReleaseCommandEnabled).mockImplementation(policy.isCoreReleaseCommandEnabled)
+    MockMainPreferenceServiceUtils.setPreferenceValue('feature.quick_assistant.enabled', true)
+    MockMainPreferenceServiceUtils.setPreferenceValue('feature.selection.enabled', true)
+    const shortcuts = [
+      ['shortcut.quick_assistant.toggle', 'E'],
+      ['shortcut.selection.toggle', 'S'],
+      ['shortcut.selection.capture_text', 'T']
+    ] as const
+    for (const [key, letter] of shortcuts) {
+      MockMainPreferenceServiceUtils.setPreferenceValue(key, { binding: ['CommandOrControl', letter], enabled: true })
+    }
+
+    await (service as any).onInit()
+
+    for (const [key, letter] of shortcuts) {
+      expect(globalShortcutMock.register).not.toHaveBeenCalledWith(`CommandOrControl+${letter}`, expect.any(Function))
+      expect(MockMainPreferenceServiceUtils.getPreferenceValue(key)).toEqual({
+        binding: ['CommandOrControl', letter],
+        enabled: true
+      })
+    }
   })
 
   it('registers only explicitly global shortcuts with Electron globalShortcut', async () => {

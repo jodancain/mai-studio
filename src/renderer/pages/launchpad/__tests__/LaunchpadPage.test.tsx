@@ -123,7 +123,8 @@ vi.mock('@renderer/hooks/useSidebarShortcuts', () => ({
 
 vi.mock('@renderer/services/toast', () => ({
   toast: {
-    error: mocks.toastError
+    error: mocks.toastError,
+    info: vi.fn()
   }
 }))
 
@@ -218,27 +219,15 @@ describe('LaunchpadPage', () => {
     mocks.reorderMiniAppsByStatus.mockResolvedValue(undefined)
   })
 
-  it('renders the launchpad page chrome and app grid', () => {
-    mocks.pinnedMiniApps = [createMiniApp('calculator')]
-
+  it('keeps core entries usable and marks non-core entries unavailable', () => {
     render(<LaunchpadPage />)
-
-    const appsHeading = screen.getByRole('heading', { name: 'Apps' })
-    const miniAppsHeading = screen.getByRole('heading', { name: 'Mini Apps' })
-    const chatButton = screen.getByRole('button', { name: 'Chat' })
-
-    expect(appsHeading.closest('section')?.parentElement).toHaveClass('max-w-180', 'gap-5')
-    expect(appsHeading.nextElementSibling).toHaveClass('grid-cols-6', 'justify-items-center', 'gap-2', 'px-2')
-    expect(miniAppsHeading.nextElementSibling).toHaveClass('grid-cols-6', 'justify-items-center', 'gap-2', 'px-2')
-    expect(chatButton).toHaveClass('mx-auto', 'w-[92px]')
-    expect(screen.getByRole('button', { name: 'Calculator' }).parentElement).toHaveClass(
-      'mx-auto',
-      'w-[92px]',
-      'justify-center'
-    )
-    expect(screen.getByRole('button', { name: 'Agent' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Knowledge' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Manage' })).not.toBeInTheDocument()
+    for (const name of ['Chat', 'Agent', 'Knowledge', 'Files']) {
+      expect(screen.getByRole('button', { name })).toBeEnabled()
+    }
+    for (const name of ['Translate', 'Paintings', 'Notes', 'Code', 'DSH']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled()
+    }
+    expect(screen.getAllByText('release.core_unavailable').length).toBeGreaterThan(0)
   })
 
   it('orders app tiles by the launchpad app order, appending the rest canonically', () => {
@@ -250,7 +239,7 @@ describe('LaunchpadPage', () => {
 
     const appLabels = screen
       .getAllByRole('button')
-      .map((button) => button.textContent)
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent)
       .filter((label): label is string =>
         [
           'Translate',
@@ -304,7 +293,7 @@ describe('LaunchpadPage', () => {
     expect(mocks.navigate).toHaveBeenCalledWith({ to: '/app/knowledge' })
   })
 
-  it('opens the dedicated DeepSeek Harness CodeMate view from its app shortcut', async () => {
+  it('does not open the unaccepted DeepSeek Harness shortcut', async () => {
     const user = userEvent.setup()
 
     render(<LaunchpadPage />)
@@ -312,10 +301,8 @@ describe('LaunchpadPage', () => {
 
     await user.click(shortcut)
 
-    expect(mocks.navigate).toHaveBeenCalledWith({
-      to: '/app/code',
-      search: { tool: 'deepseek-harness' }
-    })
+    expect(shortcut).toBeDisabled()
+    expect(mocks.navigate).not.toHaveBeenCalled()
   })
 
   it('suppresses only the dragged launchpad item click', () => {
@@ -345,7 +332,7 @@ describe('LaunchpadPage', () => {
     expect(mocks.navigate).toHaveBeenCalledWith({ to: '/app/agents' })
   })
 
-  it('navigates concrete mini apps inside the current launchpad tab', async () => {
+  it('keeps saved mini apps without launching them in the core release', async () => {
     const user = userEvent.setup()
     mocks.pinnedMiniApps = [createMiniApp('calculator')]
 
@@ -353,7 +340,8 @@ describe('LaunchpadPage', () => {
 
     await user.click(screen.getByRole('button', { name: 'Calculator' }))
 
-    expect(mocks.navigate).toHaveBeenCalledWith({ to: '/app/mini-app/calculator' })
+    expect(mocks.navigate).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Calculator' })).toBeInTheDocument()
   })
 
   it('sorts every pinned mini app by order key and persists to order keys, not favorites', () => {

@@ -47,6 +47,7 @@ import type { PreferenceShortcutType } from '@shared/data/preference/preferenceT
 import type { SupportedPlatform } from '@shared/types/command'
 import type { ShortcutPreferenceKey } from '@shared/types/shortcut'
 import { type CommandId, findCommandDefinition, findKeybindingConflicts } from '@shared/utils/command'
+import { isCoreReleaseCommandEnabled } from '@shared/utils/releasePolicy'
 import {
   convertKeyToAccelerator,
   formatKeyDisplay,
@@ -180,7 +181,10 @@ const ShortcutSettings: FC = () => {
   const shortcutPreferences = useMemo(
     () =>
       shortcuts.reduce<Partial<Record<CommandId, PreferenceShortcutType>>>((acc, shortcut) => {
-        acc[shortcut.command] = shortcut.preference
+        acc[shortcut.command] = {
+          ...shortcut.preference,
+          enabled: isCoreReleaseCommandEnabled(shortcut.command) && shortcut.preference.enabled
+        }
         return acc
       }, {}),
     [shortcuts]
@@ -356,6 +360,9 @@ const ShortcutSettings: FC = () => {
     if (!confirmed) return
 
     const updates: Record<string, PreferenceShortcutType> = getAllShortcutDefaultPreferences()
+    for (const record of shortcuts) {
+      if (!isCoreReleaseCommandEnabled(record.command)) delete updates[record.key]
+    }
 
     try {
       clearSystemConflict()
@@ -372,7 +379,13 @@ const ShortcutSettings: FC = () => {
       (acc, record) => {
         // Non-editable commands are fixed reservations (e.g. the native close
         // role); toggling them off would silently revert their accelerator.
-        if (!record.preference.binding.length || record.keybinding.editable === false) return acc
+        if (
+          !isCoreReleaseCommandEnabled(record.command) ||
+          !record.preference.binding.length ||
+          record.keybinding.editable === false
+        ) {
+          return acc
+        }
         nextPreferencesByCommand[record.command] = {
           binding: record.preference.binding,
           enabled
@@ -390,6 +403,7 @@ const ShortcutSettings: FC = () => {
 
     if (enabled) {
       for (const record of visibleShortcuts) {
+        if (!isCoreReleaseCommandEnabled(record.command)) continue
         const nextPreference = nextPreferencesByCommand[record.command]
         if (!nextPreference?.enabled || !nextPreference.binding.length) continue
 
@@ -414,7 +428,7 @@ const ShortcutSettings: FC = () => {
     const isEditing = editingKey === record.key
     const displayKeys = record.preference.binding
     const displayShortcut = displayKeys.length > 0 ? formatShortcutDisplay(displayKeys, isMac) : ''
-    const isEditable = record.keybinding.editable !== false
+    const isEditable = isCoreReleaseCommandEnabled(record.command) && record.keybinding.editable !== false
     const isBindingModified = !isBindingEqual(displayKeys, record.defaultPreference.binding)
     const hasSystemConflict = systemConflictKey === record.key
     const conflictMessage =
@@ -459,7 +473,7 @@ const ShortcutSettings: FC = () => {
       return (
         <div className="relative flex flex-col items-end">
           <RowFlex className="items-center justify-end gap-2">
-            {isBindingModified && (
+            {isBindingModified && isEditable && (
               <Tooltip content={t('settings.shortcuts.reset_to_default')}>
                 <Undo2
                   size={16}
@@ -517,11 +531,12 @@ const ShortcutSettings: FC = () => {
   }
 
   const renderShortcutRow = (record: (typeof shortcuts)[number], isLast: boolean) => {
+    const isAvailable = isCoreReleaseCommandEnabled(record.command)
     const switchNode = (
       <Switch
         size="sm"
         checked={record.preference.enabled}
-        disabled={!record.preference.binding.length || record.keybinding.editable === false}
+        disabled={!isAvailable || !record.preference.binding.length || record.keybinding.editable === false}
         onCheckedChange={() => {
           const nextPreference = {
             binding: record.preference.binding,
@@ -559,6 +574,7 @@ const ShortcutSettings: FC = () => {
         )}>
         <div className="min-w-0 pr-2">
           <div className="truncate text-[14px] text-foreground">{record.label}</div>
+          {!isAvailable && <div className="text-muted-foreground text-xs">{t('release.core_unavailable')}</div>}
         </div>
         <div className="flex min-h-9 items-center justify-end">{renderShortcutCell(record)}</div>
         <div className="flex justify-end">

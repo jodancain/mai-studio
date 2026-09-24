@@ -31,6 +31,7 @@ import { type Activatable, BaseService, DependsOn, Injectable, Phase, ServicePha
 import { isMac, isWin } from '@main/core/platform'
 import { isAppRendererUrl } from '@main/core/security/validateSender'
 import { WindowType } from '@main/core/window/types'
+import { DESKTOP_ASSISTANTS_ENABLED } from '@shared/utils/releasePolicy'
 
 import { isSafeExternalUrl } from '../utils/externalUrlSafety'
 
@@ -123,6 +124,7 @@ export class QuickAssistantService extends BaseService implements Activatable {
   private mainWindowRef: BrowserWindow | null = null
 
   protected async onInit() {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     this.subscribeMainWindowLifecycle()
 
     // Attach per-instance behavior to each fresh QuickAssistant window. Fires exactly
@@ -149,6 +151,7 @@ export class QuickAssistantService extends BaseService implements Activatable {
   }
 
   protected async onReady() {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     const preferenceService = application.get('PreferenceService')
     if (preferenceService.get('feature.quick_assistant.enabled')) {
       await this.activate()
@@ -167,6 +170,7 @@ export class QuickAssistantService extends BaseService implements Activatable {
    * whichever BrowserWindow was focused before creation and restore focus afterwards.
    */
   async onActivate(): Promise<void> {
+    if (!DESKTOP_ASSISTANTS_ENABLED) throw new Error('Desktop assistants are unavailable in this release')
     const focusedBefore = isMac ? BrowserWindow.getFocusedWindow() : null
     try {
       this.createQuickAssistant()
@@ -361,6 +365,7 @@ export class QuickAssistantService extends BaseService implements Activatable {
   }
 
   public showQuickAssistant() {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     // Activation state is the single source of truth: when the feature preference is
     // enabled, the service is activated and the window exists; when disabled, we simply
     // bail. The preference subscription in onInit keeps these in lockstep.
@@ -461,6 +466,7 @@ export class QuickAssistantService extends BaseService implements Activatable {
   }
 
   public toggleQuickAssistant() {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     const window = this.getQuickAssistant()
     if (window?.isVisible()) {
       this.hideQuickAssistant()

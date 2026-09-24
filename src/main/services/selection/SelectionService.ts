@@ -17,6 +17,7 @@ import { WindowType } from '@main/core/window/types'
 import { getApplicationId } from '@main/utils/appEdition'
 import type { SelectionActionItem } from '@shared/data/preference/preferenceTypes'
 import { SelectionTriggerMode } from '@shared/data/preference/preferenceTypes'
+import { DESKTOP_ASSISTANTS_ENABLED } from '@shared/utils/releasePolicy'
 
 import { SELECTION_FINETUNED_LIST, SELECTION_PREDEFINED_BLACKLIST } from './selectionConfig'
 
@@ -179,6 +180,7 @@ export class SelectionService extends BaseService implements Activatable {
   }
 
   onActivate(): void {
+    if (!DESKTOP_ASSISTANTS_ENABLED) throw new Error('Desktop assistants are unavailable in this release')
     // Load native module if not yet loaded (lazy loading preserved across activation cycles)
     if (!this.initStatus) {
       if (!this.loadModuleAndCreateInstance()) {
@@ -236,6 +238,10 @@ export class SelectionService extends BaseService implements Activatable {
   }
 
   protected async onInit(): Promise<void> {
+    if (!DESKTOP_ASSISTANTS_ENABLED) {
+      application.get('WindowManager').suspendPool(WindowType.SelectionAction)
+      return
+    }
     this.initZoomFactor()
 
     const wm = application.get('WindowManager')
@@ -306,6 +312,7 @@ export class SelectionService extends BaseService implements Activatable {
   }
 
   protected onAllReady(): void {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     const preferenceService = application.get('PreferenceService')
     if (!preferenceService.get('feature.selection.enabled')) {
       this.logInfo('Selection feature disabled, skipping selection-hook module loading')
@@ -504,6 +511,7 @@ export class SelectionService extends BaseService implements Activatable {
    * Will sync the new enabled store to all renderer windows
    */
   public toggleEnabled(enabled?: boolean): void {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     const preferenceService = application.get('PreferenceService')
     const newEnabled = enabled === undefined ? !preferenceService.get('feature.selection.enabled') : enabled
 
@@ -802,6 +810,7 @@ export class SelectionService extends BaseService implements Activatable {
    * it's a public method used by shortcut service
    */
   public processSelectTextByShortcut(): void {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     if (!this.selectionHook || !this.isActivated || this.triggerMode !== SelectionTriggerMode.Shortcut) return
 
     const selectionData = this.selectionHook.getCurrentSelection()
@@ -1255,6 +1264,7 @@ export class SelectionService extends BaseService implements Activatable {
    * @param isFullScreen [macOS] only macOS has the available isFullscreen mode
    */
   public processAction(actionItem: SelectionActionItem, isFullScreen: boolean = false): void {
+    if (!DESKTOP_ASSISTANTS_ENABLED) return
     const wm = application.get('WindowManager')
 
     // open({ initData }) atomically stores the action payload and, for the

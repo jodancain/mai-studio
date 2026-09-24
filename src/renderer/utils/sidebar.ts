@@ -419,3 +419,13 @@ export function reorderLaunchpadApps(
 
   return next
 }
+
+export function isCoreReleaseApp(id: string): boolean {
+  return ['assistants', 'agents', 'files', 'knowledge'].includes(id)
+}
+
+export function isCoreReleaseShortcut(target: SidebarShortcutTarget): boolean {
+  const { providerId, resourceId } = target.locator
+  if (providerId === SIDEBAR_SHORTCUT_PROVIDER_IDS.APP) return isCoreReleaseApp(resourceId)
+  return providerId !== SIDEBAR_SHORTCUT_PROVIDER_IDS.MINI_APP && providerId !== SIDEBAR_SHORTCUT_PROVIDER_IDS.CODE_CLI
+}

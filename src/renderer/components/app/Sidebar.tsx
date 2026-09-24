@@ -11,6 +11,7 @@ import useAvatar from '@renderer/hooks/useAvatar'
 import { useSidebarShortcuts } from '@renderer/hooks/useSidebarShortcuts'
 import { openSettingsTab } from '@renderer/services/mainWindowNavigation'
 import { toast } from '@renderer/services/toast'
+import { isCoreReleaseShortcut } from '@renderer/utils/sidebar'
 
 import { SidebarShellActions } from '../layout/ShellTabBarActions'
 import {
@@ -98,6 +99,7 @@ export default function Sidebar({
       resolutions.map((resolution) => {
         const { shortcut } = resolution
         const provider = registry.resolve(shortcut.target)
+        const isAvailable = isCoreReleaseShortcut(shortcut.target)
         const isResolved = resolution.status === 'resolved'
         const label = isResolved
           ? resolution.resource.label
@@ -116,27 +118,29 @@ export default function Sidebar({
               )
             }
         const activate = (inNewTab = false) => {
-          if (!isResolved || !provider) return
+          if (!isAvailable || !isResolved || !provider) return
           void activateShortcut(provider, shortcut.target, resolution.resource, inNewTab).catch(() =>
             toast.error(t('common.error'))
           )
         }
         const activateInNewTab =
-          isResolved && provider && resolution.resource.supportsNewTab ? () => activate(true) : undefined
+          isAvailable && isResolved && provider && resolution.resource.supportsNewTab ? () => activate(true) : undefined
 
         return {
           key: shortcut.id,
           label,
           renderIcon,
-          disabled: !isResolved || !provider,
+          disabled: !isAvailable || !isResolved || !provider,
           isActive: !!provider?.isActive?.(shortcut.target, navigation),
-          statusLabel: isResolved
-            ? undefined
-            : resolution.status === 'loading'
-              ? t('common.loading')
-              : resolution.status === 'missing'
-                ? t('sidebar.resource_missing')
-                : t('sidebar.resource_unavailable'),
+          statusLabel: !isAvailable
+            ? t('release.core_unavailable')
+            : isResolved
+              ? undefined
+              : resolution.status === 'loading'
+                ? t('common.loading')
+                : resolution.status === 'missing'
+                  ? t('sidebar.resource_missing')
+                  : t('sidebar.resource_unavailable'),
           onOpen: () => activate(),
           onOpenNewTab: activateInNewTab,
           contextMenuItems: [

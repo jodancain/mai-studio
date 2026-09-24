@@ -13,6 +13,8 @@ vi.mock('@main/utils/appEdition', () => ({
   getApplicationId: getApplicationIdMock
 }))
 
+vi.mock('@shared/utils/releasePolicy', () => ({ DESKTOP_ASSISTANTS_ENABLED: true }))
+
 vi.mock('@main/core/platform', () => ({
   isDev: false,
   isLinux: false,

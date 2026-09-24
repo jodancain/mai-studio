@@ -5,6 +5,7 @@ import { application } from '@application'
 import { type Activatable, BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 import { isLinux, isMac, isWin } from '@main/core/platform'
 import { t } from '@main/i18n'
+import { DESKTOP_ASSISTANTS_ENABLED } from '@shared/utils/releasePolicy'
 
 import icon from '../../../build/tray_icon.png?asset'
 import iconDark from '../../../build/tray_icon_dark.png?asset'
@@ -51,7 +52,7 @@ export class TrayService extends BaseService implements Activatable {
       this.tray.setContextMenu(this.contextMenu)
     }
 
-    this.tray.setToolTip('Cherry Studio')
+    this.tray.setToolTip('mai studio')
 
     this.tray.on('right-click', () => {
       if (this.contextMenu) {
@@ -64,7 +65,7 @@ export class TrayService extends BaseService implements Activatable {
       const quickAssistantEnabled = preferenceService.get('feature.quick_assistant.enabled')
       const clickTrayToShowQuickAssistant = preferenceService.get('feature.quick_assistant.click_tray_to_show')
 
-      if (quickAssistantEnabled && clickTrayToShowQuickAssistant) {
+      if (DESKTOP_ASSISTANTS_ENABLED && quickAssistantEnabled && clickTrayToShowQuickAssistant) {
         application.get('QuickAssistantService').showQuickAssistant()
       } else {
         application.get('MainWindowService').showMainWindow()
@@ -90,17 +91,19 @@ export class TrayService extends BaseService implements Activatable {
         label: t('tray.show_window'),
         click: () => application.get('MainWindowService').showMainWindow()
       },
-      quickAssistantEnabled && {
-        label: t('tray.show_quick_assistant'),
-        click: () => application.get('QuickAssistantService').showQuickAssistant()
-      },
-      (isWin || isMac) && {
-        label: t('selection.name') + (selectionAssistantEnabled ? ' - On' : ' - Off'),
-        click: () => {
-          application.get('SelectionService').toggleEnabled()
-          this.updateContextMenu()
-        }
-      },
+      DESKTOP_ASSISTANTS_ENABLED &&
+        quickAssistantEnabled && {
+          label: t('tray.show_quick_assistant'),
+          click: () => application.get('QuickAssistantService').showQuickAssistant()
+        },
+      DESKTOP_ASSISTANTS_ENABLED &&
+        (isWin || isMac) && {
+          label: t('selection.name') + (selectionAssistantEnabled ? ' - On' : ' - Off'),
+          click: () => {
+            application.get('SelectionService').toggleEnabled()
+            this.updateContextMenu()
+          }
+        },
       { type: 'separator' },
       {
         label: t('tray.quit'),

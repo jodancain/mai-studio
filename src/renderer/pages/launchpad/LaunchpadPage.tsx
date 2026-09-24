@@ -25,7 +25,12 @@ import { useSidebarShortcuts } from '@renderer/hooks/useSidebarShortcuts'
 import { getSidebarIconLabelKey } from '@renderer/i18n/label'
 import { toast } from '@renderer/services/toast'
 import type { SidebarAppId } from '@renderer/utils/sidebar'
-import { createSidebarShortcutTarget, getSidebarMenuPath, SIDEBAR_SHORTCUT_PROVIDER_IDS } from '@renderer/utils/sidebar'
+import {
+  createSidebarShortcutTarget,
+  getSidebarMenuPath,
+  isCoreReleaseApp,
+  SIDEBAR_SHORTCUT_PROVIDER_IDS
+} from '@renderer/utils/sidebar'
 import type { MiniApp as MiniAppType } from '@shared/data/types/miniApp'
 
 const BASE_URL = 'https://www.cherry-ai.com/'
@@ -117,6 +122,10 @@ export default function LaunchpadPage() {
 
   const navigateToUrl = useCallback(
     (url: string) => {
+      if (url === DEEPSEEK_HARNESS_URL || url.startsWith('/app/mini-app')) {
+        toast.info(t('release.core_unavailable'))
+        return
+      }
       const parsedUrl = new URL(url, BASE_URL)
       if (parsedUrl.search) {
         return navigate({
@@ -127,11 +136,11 @@ export default function LaunchpadPage() {
 
       return navigate({ to: parsedUrl.pathname })
     },
-    [navigate]
+    [navigate, t]
   )
 
   const openLaunchpadItem = (favorite: SidebarAppId) => {
-    if (shouldSuppressLaunchClick(favorite)) return
+    if (!isCoreReleaseApp(favorite) || shouldSuppressLaunchClick(favorite)) return
 
     // Launchpad opens each app at its base entry (chat -> new conversation,
     // agents -> new session). Resuming the last-used instance is the sidebar's
@@ -252,6 +261,9 @@ export default function LaunchpadPage() {
     <CommandContextMenu key={item.id} location="webcontents.context" extraItems={item.menuItems}>
       <button
         type="button"
+        aria-label={item.text}
+        disabled={!isCoreReleaseApp(item.id)}
+        title={!isCoreReleaseApp(item.id) ? t('release.core_unavailable') : undefined}
         onClick={() => openLaunchpadItem(item.id)}
         className={`${LAUNCHPAD_ITEM_CLASS} group flex cursor-pointer flex-col items-center gap-1 rounded-2xl px-1 py-2 text-center outline-none transition-transform duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95`}>
         <span className="relative flex size-14 items-center justify-center">
@@ -263,6 +275,9 @@ export default function LaunchpadPage() {
         </span>
         <span className="w-full overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-foreground">
           {item.text}
+          {!isCoreReleaseApp(item.id) && (
+            <span className="block whitespace-normal text-foreground-disabled">{t('release.core_unavailable')}</span>
+          )}
         </span>
       </button>
     </CommandContextMenu>
@@ -311,6 +326,8 @@ export default function LaunchpadPage() {
               />
               <button
                 type="button"
+                disabled
+                title={t('release.core_unavailable')}
                 onClick={openDeepSeekHarness}
                 className={`${LAUNCHPAD_ITEM_CLASS} group flex cursor-pointer flex-col items-center gap-1 rounded-2xl px-1 py-2 text-center outline-none transition-transform duration-200 hover:scale-105 focus-visible:scale-105 active:scale-95`}>
                 <span className={APP_ICON_TILE_CLASS}>
@@ -328,7 +345,7 @@ export default function LaunchpadPage() {
           {launchpadMiniAppsVisible && (
             <section className="flex flex-col gap-2">
               <h2 className="m-0 px-9 py-0 font-semibold text-[14px] text-foreground opacity-80">
-                {t('launchpad.miniApps')}
+                {t('launchpad.miniApps')} · {t('release.core_unavailable')}
               </h2>
               <div className={LAUNCHPAD_GRID_CLASS}>
                 <Sortable

@@ -24,6 +24,7 @@ import {
   resolveCommandByKeybinding,
   resolveCommandKeybinding
 } from '@shared/utils/command'
+import { isCoreReleaseCommandEnabled } from '@shared/utils/releasePolicy'
 import { getShortcutBindingFromKeyboardEvent } from '@shared/utils/shortcut'
 
 const logger = loggerService.withContext('ShortcutService')
@@ -211,6 +212,7 @@ export class ShortcutService extends BaseService {
     }
 
     for (const rule of globalKeybindings) {
+      if (!isCoreReleaseCommandEnabled(rule.command)) continue
       const command = findCommandDefinition(rule.command)
       if (!command || !evaluateContextExpr(command.enablement, context)) {
         continue
