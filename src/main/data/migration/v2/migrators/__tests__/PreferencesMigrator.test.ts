@@ -184,7 +184,8 @@ describe('PreferencesMigrator', () => {
       const policyVersion = await selectByKey(dbh.db, 'app.privacy.policy_version')
       expect(policyVersion[0]?.value).toBe('')
       const dataCollection = await selectByKey(dbh.db, 'app.privacy.data_collection.enabled')
-      expect(dataCollection[0]?.value).toBe(true)
+      // This fork ships telemetry off by default: there is no mai studio endpoint to report to.
+      expect(dataCollection[0]?.value).toBe(false)
       const clientId = await selectByKey(dbh.db, 'app.user.id')
       expect(clientId[0]?.value).toBe('')
     })

@@ -50,7 +50,7 @@ export const DOC_TAGS = {
   openai: 'OpenAI API',
   anthropic: 'Anthropic API',
   gemini: 'Gemini API',
-  cherry: 'Cherry Studio'
+  cherry: 'mai studio'
 } as const
 
 /**
@@ -146,7 +146,7 @@ export function buildOpenApiDocument(app: AnyElysia, lang: LanguageVarious, serv
   return {
     openapi: '3.0.3',
     info: {
-      title: 'Cherry Studio API',
+      title: 'mai studio API',
       version: '1.0.0',
       description: t('apiGateway.docs.description', undefined, lang)
     },
@@ -269,7 +269,7 @@ const DOCS_CSS = `<style>
 export function renderDocsPage(lang: LanguageVarious, specUrl: string): string {
   const html = ScalarRender(
     {
-      title: 'Cherry Studio API',
+      title: 'mai studio API',
       version: '1.0.0',
       description: t('apiGateway.docs.description', undefined, lang)
     },

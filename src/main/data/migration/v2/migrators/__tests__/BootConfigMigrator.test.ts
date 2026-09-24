@@ -89,7 +89,7 @@ describe('BootConfigMigrator', () => {
     it('prepares and executes a legacy-string derived record', async () => {
       const migrator = await createMigrator()
       const ctx = createMockContext({
-        legacyHomeConfig: { '/Applications/Cherry Studio.app/exe': '/Volumes/Ext/Data' }
+        legacyHomeConfig: { '/Applications/mai studio.app/exe': '/Volumes/Ext/Data' }
       })
 
       const prepared = await migrator.prepare(ctx)
@@ -105,7 +105,7 @@ describe('BootConfigMigrator', () => {
       // C1-critical: directly assert the value structure — validate() alone
       // can't be trusted for Record-typed keys (see §4.5 in the plan).
       expect(mockBootConfigSet).toHaveBeenCalledWith('app.user_data_path', {
-        '/Applications/Cherry Studio.app/exe': '/Volumes/Ext/Data'
+        '/Applications/mai studio.app/exe': '/Volumes/Ext/Data'
       })
       expect(mockBootConfigPersist).toHaveBeenCalled()
     })
@@ -113,7 +113,7 @@ describe('BootConfigMigrator', () => {
     it('returns { success: false } when persisting boot config fails', async () => {
       const migrator = await createMigrator()
       const ctx = createMockContext({
-        legacyHomeConfig: { '/Applications/Cherry Studio.app/exe': '/Volumes/Ext/Data' }
+        legacyHomeConfig: { '/Applications/mai studio.app/exe': '/Volumes/Ext/Data' }
       })
 
       await migrator.prepare(ctx)
@@ -160,8 +160,8 @@ describe('BootConfigMigrator', () => {
     it('converts an array-derived record and writes it verbatim', async () => {
       const migrator = await createMigrator()
       const multiInstall = {
-        '/Applications/Cherry Studio.app/exe': '/Volumes/Ext1/Data',
-        '/Applications/Cherry Studio Dev.app/exe': '/Volumes/Ext2/DevData'
+        '/Applications/mai studio.app/exe': '/Volumes/Ext1/Data',
+        '/Applications/mai studio Dev.app/exe': '/Volumes/Ext2/DevData'
       }
       const ctx = createMockContext({ legacyHomeConfig: multiInstall })
 
@@ -180,7 +180,7 @@ describe('BootConfigMigrator', () => {
     // drop the freshly-pinned current-exe entry and, after relaunch, the app
     // would miss its own migrated directory. The migrator must MERGE, keeping
     // existing (pinned) entries.
-    const CURRENT_EXE = '/Applications/Cherry Studio.app/Contents/MacOS/Cherry Studio'
+    const CURRENT_EXE = '/Applications/mai studio.app/Contents/MacOS/mai studio'
     const OLD_EXE = '/Applications/CherryStudio.app/Contents/MacOS/CherryStudio'
     const RECOVERED_DIR = '/Volumes/Ext/CherryData'
 

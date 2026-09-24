@@ -100,7 +100,7 @@ function resolveServer(idOrName: string): McpServer {
 
 /**
  * `/v1/mcps` — exposes the user's configured MCP servers over HTTP so external
- * clients can use Cherry Studio as a local MCP hub (issue #17992).
+ * clients can use mai studio as a local MCP hub (issue #17992).
  *
  * Sessions are **opt-in by the client** (see `handleProxyPost`): one that sends `initialize`
  * gets an `Mcp-Session-Id` and may hold a `GET` stream for server→client push; one that just
@@ -142,7 +142,7 @@ export function createMcpRoutes(sessions: McpSessionStore) {
               id: server.id,
               name: server.name,
               // Always `streamableHttp`: this is the transport the client speaks to *us*,
-              // regardless of how Cherry Studio reaches the server upstream.
+              // regardless of how mai studio reaches the server upstream.
               type: 'streamableHttp' as const,
               description: server.description,
               url: `${origin}/v1/mcps/${server.id}/mcp`

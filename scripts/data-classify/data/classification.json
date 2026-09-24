@@ -1900,7 +1900,7 @@
         {
           "originalKey": "enableDataCollection",
           "type": "boolean",
-          "defaultValue": true,
+          "defaultValue": false,
           "status": "classified",
           "category": "preferences",
           "targetKey": "app.privacy.data_collection.enabled"
@@ -2435,7 +2435,7 @@
             },
             {
               "category": "preferences",
-              "defaultValue": 23333,
+              "defaultValue": 23334,
               "originalKey": "port",
               "status": "classified",
               "targetKey": "feature.api_gateway.port",
