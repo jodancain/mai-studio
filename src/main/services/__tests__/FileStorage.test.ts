@@ -2,8 +2,12 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 
+import AdmZip from 'adm-zip'
+import { Document, Packer, Paragraph } from 'docx'
 import { dialog, shell } from 'electron'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { application } from '@application'
 
 // `t` pulls in i18n + preference machinery that isn't initialized under test; the
 // dialog title it produces is irrelevant to these contracts, so stub it to the key.
@@ -162,6 +166,52 @@ describe('FileStorage', () => {
 
     it('returns utf-8 file content verbatim (auto-encoding branch)', async () => {
       await expect(fileStorage.readExternalFile(event, tmpFile, true)).resolves.toBe('Hello 世界\nsecond line')
+    })
+  })
+
+  describe('readExternalFile office documents', () => {
+    let tmpDir: string
+    let parserDir: string
+    let docxPath: string
+
+    beforeEach(async () => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'filestorage-office-test-'))
+      parserDir = path.join(tmpDir, 'parser')
+      fs.mkdirSync(parserDir)
+      docxPath = path.join(tmpDir, 'document.docx')
+      const getPath = vi.mocked(application.getPath).getMockImplementation()!
+      vi.spyOn(application, 'getPath').mockImplementation((key, filename) =>
+        key === 'app.temp' ? path.join(parserDir, filename ?? '') : getPath(key, filename)
+      )
+      const document = new Document({
+        sections: [{ children: [new Paragraph('Office import works'), new Paragraph('中文内容')] }]
+      })
+      fs.writeFileSync(docxPath, await Packer.toBuffer(document))
+    })
+
+    afterEach(() => {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    })
+
+    it('extracts text from a real DOCX through the external-file import path', async () => {
+      const text = await fileStorage.readExternalFile(event, docxPath)
+      expect(text.trimEnd()).toBe('Office import works\n中文内容')
+      expect(fs.readdirSync(parserDir)).toEqual([])
+    })
+
+    it('rejects ZIP traversal entries without writing outside the parser directory', async () => {
+      const escapedPath = path.join(tmpDir, 'escaped.txt')
+      fs.writeFileSync(escapedPath, 'keep existing content')
+      const archive = new AdmZip(docxPath)
+      archive.addFile('escaped.txt', Buffer.from('overwritten by archive'))
+      // Renaming the raw entry bypasses the ZIP writer's input normalization.
+      archive.getEntry('escaped.txt')!.entryName = '../../escaped.txt'
+      fs.writeFileSync(docxPath, archive.toBuffer())
+
+      await expect(fileStorage.readExternalFile(event, docxPath)).rejects.toThrow(/invalid relative path/)
+      expect(fs.readFileSync(escapedPath, 'utf-8')).toBe('keep existing content')
+      expect(fs.readdirSync(parserDir)).toEqual([])
+      expect(fs.readdirSync(tmpDir).sort()).toEqual(['document.docx', 'escaped.txt', 'parser'])
     })
   })
 

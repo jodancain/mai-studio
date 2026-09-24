@@ -1,0 +1,50 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -892,6 +892,21 @@
+ 					}
+ 					return false;
+ 				},
++				scroll(view) {
++					if (!element || locked) return false;
++					if (view.hasFocus()) {
++						hideHandle();
++						currentNode = null;
++						currentNodePos = -1;
++						onNodeChange === null || onNodeChange === void 0 || onNodeChange({
++							editor,
++							node: null,
++							pos: -1
++						});
++						return false;
++					}
++					return false;
++				},
+ 				mouseleave(_view, e) {
+ 					if (locked) return false;
+ 					if (e.target && !wrapper.contains(e.relatedTarget)) {
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -888,6 +888,21 @@
+ 					}
+ 					return false;
+ 				},
++				scroll(view) {
++					if (!element || locked) return false;
++					if (view.hasFocus()) {
++						hideHandle();
++						currentNode = null;
++						currentNodePos = -1;
++						onNodeChange === null || onNodeChange === void 0 || onNodeChange({
++							editor,
++							node: null,
++							pos: -1
++						});
++						return false;
++					}
++					return false;
++				},
+ 				mouseleave(_view, e) {
+ 					if (locked) return false;
+ 					if (e.target && !wrapper.contains(e.relatedTarget)) {

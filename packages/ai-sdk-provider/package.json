@@ -1,7 +1,7 @@
 {
   "name": "@cherrystudio/ai-sdk-provider",
   "version": "0.1.6",
-  "description": "Cherry Studio AI SDK provider bundle with CherryIN routing.",
+  "description": "mai studio AI SDK provider bundle with CherryIN routing.",
   "keywords": [
     "ai-sdk",
     "cherry-studio",
@@ -14,7 +14,7 @@
     "url": "https://github.com/CherryHQ/cherry-studio/issues"
   },
   "license": "MIT",
-  "author": "Cherry Studio",
+  "author": "mai studio",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CherryHQ/cherry-studio.git",

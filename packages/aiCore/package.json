@@ -1,7 +1,7 @@
 {
   "name": "@cherrystudio/ai-core",
   "version": "2.0.1",
-  "description": "Cherry Studio AI Core - Unified AI Provider Interface Based on Vercel AI SDK",
+  "description": "mai studio AI Core - Unified AI Provider Interface Based on Vercel AI SDK",
   "keywords": [
     "ai",
     "anthropic",
@@ -16,7 +16,7 @@
     "url": "https://github.com/CherryHQ/cherry-studio/issues"
   },
   "license": "MIT",
-  "author": "Cherry Studio",
+  "author": "mai studio",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/CherryHQ/cherry-studio.git"

@@ -1,0 +1,96 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -758,6 +758,28 @@
+ * Used to identify continuation content that belongs to a list item.
+ */
+ const INDENTED_LINE_REGEX = /^\s/;
++// Reject non-list blocks before splitting the full remaining Markdown source.
++function firstLineOf(src) {
++	const nl = src.indexOf("\n");
++	return nl === -1 ? src : src.slice(0, nl);
++}
++function startsWithOrderedListItem(src) {
++	return ORDERED_LIST_ITEM_REGEX.test(firstLineOf(src));
++}
++function startsWithTaskListItem(src) {
++	let start = 0;
++	while (start < src.length) {
++		let nl = src.indexOf("\n", start);
++		if (nl === -1) nl = src.length;
++		const line = src.slice(start, nl);
++		if (line.trim() !== "") {
++			return /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/.test(line);
++		}
++		start = nl + 1;
++	}
++	return false;
++}
++
+ /**
+ * This are blocks that can interrupt a paragraph, so a line starting with one of
+ * them can never be lazy continuation text of a list item
+@@ -1102,6 +1124,7 @@
+ 		start: () => -1,
+ 		tokenize: (src, _tokens, lexer) => {
+ 			var _listItems$, _listItems$2;
++			if (!startsWithOrderedListItem(src)) return;
+ 			const lines = src.split("\n");
+ 			const [listItems, consumed] = collectOrderedListItems(lines);
+ 			if (listItems.length === 0) return;
+@@ -1403,6 +1426,7 @@
+ 			return index !== void 0 ? index : -1;
+ 		},
+ 		tokenize(src, tokens, lexer) {
++			if (!startsWithTaskListItem(src)) return;
+ 			const parseTaskListContent = (content) => {
+ 				const nestedResult = (0, _tiptap_core.parseIndentedBlocks)(content, {
+ 					itemPattern: /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,
+diff --git a/dist/index.js b/dist/index.js
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -746,6 +746,28 @@
+ * Used to identify continuation content that belongs to a list item.
+ */
+ const INDENTED_LINE_REGEX = /^\s/;
++// Reject non-list blocks before splitting the full remaining Markdown source.
++function firstLineOf(src) {
++	const nl = src.indexOf("\n");
++	return nl === -1 ? src : src.slice(0, nl);
++}
++function startsWithOrderedListItem(src) {
++	return ORDERED_LIST_ITEM_REGEX.test(firstLineOf(src));
++}
++function startsWithTaskListItem(src) {
++	let start = 0;
++	while (start < src.length) {
++		let nl = src.indexOf("\n", start);
++		if (nl === -1) nl = src.length;
++		const line = src.slice(start, nl);
++		if (line.trim() !== "") {
++			return /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/.test(line);
++		}
++		start = nl + 1;
++	}
++	return false;
++}
++
+ /**
+ * This are blocks that can interrupt a paragraph, so a line starting with one of
+ * them can never be lazy continuation text of a list item
+@@ -1090,6 +1112,7 @@
+ 		start: () => -1,
+ 		tokenize: (src, _tokens, lexer) => {
+ 			var _listItems$, _listItems$2;
++			if (!startsWithOrderedListItem(src)) return;
+ 			const lines = src.split("\n");
+ 			const [listItems, consumed] = collectOrderedListItems(lines);
+ 			if (listItems.length === 0) return;
+@@ -1391,6 +1414,7 @@
+ 			return index !== void 0 ? index : -1;
+ 		},
+ 		tokenize(src, tokens, lexer) {
++			if (!startsWithTaskListItem(src)) return;
+ 			const parseTaskListContent = (content) => {
+ 				const nestedResult = parseIndentedBlocks(content, {
+ 					itemPattern: /^(\s*)([-+*])\s+\[([ xX])\]\s+(.*)$/,

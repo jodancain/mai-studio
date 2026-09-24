@@ -2,8 +2,8 @@ import http from 'node:http'
 import https from 'node:https'
 
 import axios from 'axios'
-import { socksDispatcher } from 'fetch-socks'
-import { Dispatcher, EnvHttpProxyAgent, getGlobalDispatcher, setGlobalDispatcher } from 'undici'
+import { socksConnector } from 'fetch-socks'
+import { Agent, Dispatcher, EnvHttpProxyAgent, getGlobalDispatcher, setGlobalDispatcher } from 'undici'
 
 import { type NodeProxyLogger, ProxyBypassRuleMatcher } from './bypassRules'
 import type { ProxyEndpoint } from './proxyRouting'
@@ -184,12 +184,15 @@ export class NodeProxyBackend {
     }
 
     this.proxyDispatcher = new SelectiveDispatcher(
-      socksDispatcher({
-        port: endpoint.port,
-        type: endpoint.version,
-        host: endpoint.host,
-        userId: endpoint.userId,
-        password: endpoint.password
+      // Keep the dispatcher on the app's Undici ABI; fetch-socks may use another major.
+      new Agent({
+        connect: socksConnector({
+          port: endpoint.port,
+          type: endpoint.version,
+          host: endpoint.host,
+          userId: endpoint.userId,
+          password: endpoint.password
+        })
       }),
       this.originalSocksDispatcher,
       (origin) => this.proxyBypassRuleMatcher.isByPass(origin, this.logger),
