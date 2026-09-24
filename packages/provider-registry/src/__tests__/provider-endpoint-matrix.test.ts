@@ -197,3 +197,59 @@ describe('new-api single-host endpoints', () => {
     expect(provider('new-api').overrides ?? []).toEqual([])
   })
 })
+
+/**
+ * ezr.sh multiplexes the vendors' native protocols on one host, and which protocol a model answers
+ * on is per-model, not per-family. Probed against the live gateway: every `claude-*` returns 200 on
+ * `/v1/messages` and `/v1/chat/completions` but 500 on `/v1/responses`; every `*-codex` returns 400
+ * `{"error":{"message":"The requested operation is unsupported."}}` on BOTH chat/completions and
+ * messages and 200 only on `/v1/responses`. So the codex single-element pin is a real vendor
+ * limitation, not a preference — unpinning it routes requests to an endpoint that rejects them.
+ */
+describe('mai (ezr.sh) endpoint matrix', () => {
+  it('serves all three protocols from one bare host, letting formatApiHost append /v1', () => {
+    const configs = provider('mai').endpointConfigs ?? {}
+
+    expect(configs['anthropic-messages']).toMatchObject({ adapterFamily: 'anthropic', baseUrl: 'https://ezr.sh' })
+    expect(configs['openai-chat-completions']).toMatchObject({
+      adapterFamily: 'openai-compatible',
+      baseUrl: 'https://ezr.sh'
+    })
+    expect(configs['openai-responses']).toMatchObject({ adapterFamily: 'openai', baseUrl: 'https://ezr.sh' })
+  })
+
+  it.each(['claude-opus-5', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-fable-5'])(
+    'prefers native Messages for %s while keeping Chat Completions selectable',
+    (modelId) => {
+      expect(endpointsOf('mai', modelId)).toEqual(['anthropic-messages', 'openai-chat-completions'])
+    }
+  )
+
+  it('routes the date-pinned sonnet-4-5 the gateway lists to its canonical model', () => {
+    const entry = provider('mai').overrides?.find((o) => o.modelId === 'claude-sonnet-4-5')
+    expect(entry?.apiModelId).toBe('claude-sonnet-4-5@20250929')
+  })
+
+  it.each(['gpt-5-3-codex', 'gpt-5-2-codex', 'gpt-5-1-codex', 'gpt-5-1-codex-max', 'gpt-5-1-codex-mini'])(
+    'pins %s to Responses, the only endpoint the gateway serves it on',
+    (modelId) => {
+      expect(endpointsOf('mai', modelId)).toEqual(['openai-responses'])
+    }
+  )
+
+  it.each(['gpt-6-astra', 'gpt-5-5', 'gpt-5-1'])(
+    'prefers Responses for the non-codex GPT line %s while keeping Chat selectable',
+    (modelId) => {
+      expect(endpointsOf('mai', modelId)).toEqual(['openai-responses', 'openai-chat-completions'])
+    }
+  )
+
+  it('maps every served model id verbatim to the gateway wire id', () => {
+    const rows = provider('mai').overrides ?? []
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(row.apiModelId).toBeTruthy()
+      expect(row.endpointTypes?.length).toBeGreaterThan(0)
+    }
+  })
+})

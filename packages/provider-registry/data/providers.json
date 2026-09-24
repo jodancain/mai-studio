@@ -708,6 +708,116 @@
     },
     {
       "availableInEditions": ["global", "cn"],
+      "defaultChatEndpoint": "anthropic-messages",
+      "description": "mai studio - AI model provider",
+      "endpointConfigs": {
+        "anthropic-messages": {
+          "adapterFamily": "anthropic",
+          "baseUrl": "https://ezr.sh"
+        },
+        "openai-chat-completions": {
+          "adapterFamily": "openai-compatible",
+          "baseUrl": "https://ezr.sh"
+        },
+        "openai-responses": {
+          "adapterFamily": "openai",
+          "baseUrl": "https://ezr.sh",
+          "reasoningFormat": {
+            "type": "openai-responses",
+            "wire": {
+              "auto": {
+                "effortMap": {
+                  "auto": "medium"
+                },
+                "operations": [
+                  {
+                    "target": "reasoningEffort",
+                    "value": {
+                      "source": "effort"
+                    }
+                  },
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "literal",
+                      "value": "auto"
+                    }
+                  },
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "assistant-summary"
+                    }
+                  }
+                ]
+              },
+              "default": {
+                "operations": [
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "literal",
+                      "value": "auto"
+                    }
+                  },
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "assistant-summary"
+                    }
+                  }
+                ]
+              },
+              "effort": {
+                "operations": [
+                  {
+                    "target": "reasoningEffort",
+                    "value": {
+                      "source": "effort"
+                    }
+                  },
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "literal",
+                      "value": "auto"
+                    }
+                  },
+                  {
+                    "target": "reasoningSummary",
+                    "value": {
+                      "source": "assistant-summary"
+                    }
+                  }
+                ]
+              },
+              "off": {
+                "operations": [
+                  {
+                    "target": "reasoningEffort",
+                    "value": {
+                      "source": "literal",
+                      "value": "none"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "id": "mai",
+      "metadata": {
+        "website": {
+          "models": "https://ezr.sh",
+          "official": "https://ezr.sh"
+        }
+      },
+      "modelListSource": "registry",
+      "name": "mai studio"
+    },
+    {
+      "availableInEditions": ["global", "cn"],
       "defaultChatEndpoint": "openai-chat-completions",
       "description": "TokenDance - AI model provider",
       "endpointConfigs": {
@@ -2636,5 +2746,5 @@
       "presetProviderId": "minimax"
     }
   ],
-  "version": "2707d81b155c6c98"
+  "version": "869b88bd5215bbe7"
 }

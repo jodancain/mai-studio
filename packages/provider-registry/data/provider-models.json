@@ -17725,6 +17725,168 @@
       "providerId": "longcat"
     },
     {
+      "apiModelId": "claude-fable-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-fable-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-fable-5-1",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-fable-5-1",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-haiku-4-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-haiku-4-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-4-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-4-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-4-6",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-4-6",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-4-7",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-4-7",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-4-8",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-4-8",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-sonnet-4-5@20250929",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-sonnet-4-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-sonnet-4-6",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-sonnet-4-6",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-sonnet-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-sonnet-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.1",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-1",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.1-codex",
+      "endpointTypes": ["openai-responses"],
+      "modelId": "gpt-5-1-codex",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.1-codex-max",
+      "endpointTypes": ["openai-responses"],
+      "modelId": "gpt-5-1-codex-max",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.1-codex-mini",
+      "endpointTypes": ["openai-responses"],
+      "modelId": "gpt-5-1-codex-mini",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.2",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-2",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.2-codex",
+      "endpointTypes": ["openai-responses"],
+      "modelId": "gpt-5-2-codex",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.3-codex",
+      "endpointTypes": ["openai-responses"],
+      "modelId": "gpt-5-3-codex",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.4",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-4",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.4-mini",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-4-mini",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.4-nano",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-4-nano",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.5",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.6-luna",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-6-luna",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.6-sol",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-6-sol",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-5.6-terra",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-5-6-terra",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-6-astra",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-6-astra",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "gpt-chat-latest",
+      "endpointTypes": ["openai-responses", "openai-chat-completions"],
+      "modelId": "gpt-chat-latest",
+      "providerId": "mai"
+    },
+    {
       "modelId": "mimo-v2-5",
       "providerId": "mimo",
       "reasoningContracts": {
@@ -40655,5 +40817,5 @@
       "providerId": "zhipu"
     }
   ],
-  "version": "268f15c29341edb0"
+  "version": "b89add69a6413478"
 }

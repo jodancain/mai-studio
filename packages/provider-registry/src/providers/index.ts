@@ -28,6 +28,7 @@ import p_jina from './jina'
 import p_lanyun from './lanyun'
 import p_lmstudio from './lmstudio'
 import p_longcat from './longcat'
+import p_mai from './mai'
 import p_mimo from './mimo'
 import p_minimax from './minimax'
 import p_minimax_global from './minimax-global'
@@ -86,6 +87,7 @@ export const PROVIDERS: Provider[] = [
   p_openrouter,
   p_ollama,
   p_radeon_cloud,
+  p_mai,
   p_tokendance,
   p_new_api,
   p_lmstudio,
