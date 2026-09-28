@@ -37,6 +37,7 @@ Thumbs.db
 node_modules
 .pnpm-store/
 dist
+dist-*/
 out
 mcp_server
 stats.html
