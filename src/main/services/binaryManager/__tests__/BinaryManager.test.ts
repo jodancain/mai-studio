@@ -2086,7 +2086,7 @@ describe('BinaryManager', () => {
       expect(mockExecFileAsync.mock.calls.map((call: any[]) => call[1])).toContainEqual([
         'use',
         '-g',
-        'node@22',
+        'node@26',
         'npm:@vendor/native-cli[allow_builds=["\\u0040vendor/native-cli","better-sqlite3"]]@latest'
       ])
     })
@@ -2486,7 +2486,7 @@ describe('BinaryManager', () => {
 
       await service.installByName({ name: 'mytool' })
 
-      expect(miseArgs()).toContainEqual(['use', '-g', 'node@22', 'npm:mytool@latest'])
+      expect(miseArgs()).toContainEqual(['use', '-g', 'node@26', 'npm:mytool@latest'])
       expect(miseArgs()).not.toContainEqual(['use', '-g', 'core:node@20.0.0', 'npm:mytool@latest'])
     })
 
@@ -2532,7 +2532,7 @@ describe('BinaryManager', () => {
         'latest',
         '--minimum-release-age',
         '0s',
-        'node@22'
+        'node@26'
       ])
       expect(useCalls[0]?.[2].env).not.toHaveProperty('MISE_NPM_SHELL_OUT')
       expect(useCalls[1]?.[2].env).toMatchObject({
@@ -2630,7 +2630,7 @@ describe('BinaryManager', () => {
       await service.addCustomTool({ name: 'mytool', tool: 'npm:mytool' })
 
       expect(manifestRef.value).toEqual([{ name: 'mytool', tool: 'npm:mytool' }])
-      expect(miseArgs()).toContainEqual(['use', '-g', 'node@22', 'npm:mytool@latest'])
+      expect(miseArgs()).toContainEqual(['use', '-g', 'node@26', 'npm:mytool@latest'])
       expect(operations()).toEqual({})
     })
 
@@ -2680,7 +2680,7 @@ describe('BinaryManager', () => {
       await service.addCustomTool({ name: 'mytool', tool: 'npm:mytool' })
 
       expect(manifestRef.value).toEqual([{ name: 'mytool', tool: 'npm:mytool' }])
-      expect(miseArgs()).not.toContainEqual(['use', '-g', 'node@22', 'npm:mytool@latest'])
+      expect(miseArgs()).not.toContainEqual(['use', '-g', 'node@26', 'npm:mytool@latest'])
       expect(operations()).toEqual({})
     })
 
@@ -2725,7 +2725,7 @@ describe('BinaryManager', () => {
       expect(mockExecFileAsync.mock.calls.map((call: any[]) => call[1])).toContainEqual([
         'use',
         '-g',
-        'node@22',
+        'node@26',
         'npm:mytool@2.0.0'
       ])
       expect(operations()).toEqual({})
@@ -3161,7 +3161,7 @@ describe('BinaryManager', () => {
       expect(mockFs.copyFileSync).not.toHaveBeenCalled()
       // Installs may download a runtime (node/python) — they get the long
       // budget, unlike query commands which keep the 120s default.
-      expect(mockExecFileAsync).toHaveBeenCalledWith('/mock/mise', ['use', '-g', 'node@22', 'npm:mynpmtool@1.0.0'], {
+      expect(mockExecFileAsync).toHaveBeenCalledWith('/mock/mise', ['use', '-g', 'node@26', 'npm:mynpmtool@1.0.0'], {
         cwd: '/tmp',
         env: {},
         timeout: 900_000
@@ -3788,7 +3788,7 @@ describe('BinaryManager', () => {
       ;(service as any).isolatedEnv = { env: {}, usesDefaultChinaPipIndex: false }
       // execFile timeout kill: killed=true, stderr stuck on a progress line.
       mockExecFileAsync.mockRejectedValueOnce(
-        Object.assign(new Error('Command failed: /mock/mise use -g node@22 npm:openclaw@latest'), {
+        Object.assign(new Error('Command failed: /mock/mise use -g node@26 npm:openclaw@latest'), {
           killed: true,
           signal: 'SIGTERM',
           stderr: 'mise npm:openclaw@2026.6.11   [1/3] install\n'
@@ -3796,7 +3796,7 @@ describe('BinaryManager', () => {
       )
 
       const error = await (service as any)
-        .runMise(['use', '-g', 'node@22', 'npm:openclaw@latest'], { timeoutMs: 0 })
+        .runMise(['use', '-g', 'node@26', 'npm:openclaw@latest'], { timeoutMs: 0 })
         .catch((caught: Error) => caught)
       expect(error.message).toContain('mise use timed out after 0s')
       expect(error.message).toContain('[1/3] install')

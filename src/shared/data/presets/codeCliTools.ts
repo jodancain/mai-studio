@@ -75,7 +75,9 @@ export const CODE_CLI_TOOL_PRESETS = Object.freeze([
     executable: 'openclaw',
     skillFolderName: 'code-mate-openclaw',
     packageName: 'openclaw',
-    install: 'npm'
+    install: 'npm',
+    // mise 2026.7.14 aube rejects openclaw's versionless patchedDependencies keys (>=2026.9.6).
+    miseNpmShellOut: true
   }),
   defineCodeCliTool({
     id: CodeCli.DEEPSEEK_HARNESS,
