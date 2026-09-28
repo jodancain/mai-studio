@@ -1,4 +1,5 @@
 import type { RouteDef } from '../define'
+import { type AgentGroupChatEventSchemas, agentGroupChatRequestSchemas } from './agentGroupChat'
 import { type AiEventSchemas, aiRequestSchemas } from './ai'
 import { type ApiGatewayEventSchemas, apiGatewayRequestSchemas } from './apiGateway'
 import { type AppEventSchemas, appRequestSchemas } from './app'
@@ -50,6 +51,7 @@ import { type WindowEventSchemas, windowRequestSchemas } from './window'
  * never enter the renderer bundle (see ipc-overview.md, "zod across processes").
  */
 export const ipcRequestSchemas = {
+  ...agentGroupChatRequestSchemas,
   ...aiRequestSchemas,
   ...apiGatewayRequestSchemas,
   ...appRequestSchemas,
@@ -103,7 +105,8 @@ export type IpcRoute = keyof IpcRequestSchemas
  * the renderer trusts them and never re-parses). Each migrated domain intersects
  * its own `*EventSchemas` type here.
  */
-export type IpcEventSchemas = AiEventSchemas &
+export type IpcEventSchemas = AgentGroupChatEventSchemas &
+  AiEventSchemas &
   ApiGatewayEventSchemas &
   AppEventSchemas &
   BackupEventSchemas &

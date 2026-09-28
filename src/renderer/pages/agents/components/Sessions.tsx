@@ -1,4 +1,5 @@
-import { Folder, FolderOpen, MoreHorizontal, Plus } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Folder, FolderOpen, MoreHorizontal, Plus, UsersRound } from 'lucide-react'
 import { lazy, memo, type RefObject, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -362,6 +363,7 @@ const Sessions = ({
   setActiveSessionId: setControlledActiveSessionId
 }: SessionsProps) => {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const closeConversationTabs = useCloseConversationTabs()
   const isRightPanel = presentation === 'right-panel'
   const conversationNav = useConversationNavigation('agents')
@@ -2170,6 +2172,13 @@ const Sessions = ({
                   }
                 />
               }
+            />
+            <ResourceList.HeaderItem
+              type="button"
+              aria-label={t('agent.group_chat.title')}
+              icon={<UsersRound />}
+              label={t('agent.group_chat.title')}
+              onClick={() => void navigate({ to: '/app/agent-group-chats', search: {} })}
             />
           </>
         )}

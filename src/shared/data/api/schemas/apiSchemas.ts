@@ -20,6 +20,7 @@
  */
 import type { AssertValidSchemas } from '../types'
 import type { AgentChannelSchemas } from './agentChannels'
+import type { AgentGroupChatSchemas } from './agentGroupChats'
 import type { AgentSchemas } from './agents'
 import type { AgentSessionMessageSchemas } from './agentSessionMessages'
 import type { AgentSessionSchemas } from './agentSessions'
@@ -86,6 +87,7 @@ export type ApiSchemas = AssertValidSchemas<
     SkillSchemas &
     AgentSessionMessageSchemas &
     AgentSessionSchemas &
+    AgentGroupChatSchemas &
     AgentWorkspaceSchemas &
     AgentChannelSchemas &
     JobSchemas &

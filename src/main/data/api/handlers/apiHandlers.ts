@@ -14,6 +14,7 @@
 import type { ApiImplementation } from '@shared/data/api/types'
 
 import { agentChannelHandlers } from './agentChannels'
+import { agentGroupChatHandlers } from './agentGroupChats'
 import { agentHandlers } from './agents'
 import { agentSessionMessageHandlers } from './agentSessionMessages'
 import { agentSessionHandlers } from './agentSessions'
@@ -65,6 +66,7 @@ export const apiHandlers: ApiImplementation = {
   ...paintingHandlers,
   ...providerHandlers,
   ...agentSessionHandlers,
+  ...agentGroupChatHandlers,
   ...agentSessionMessageHandlers,
   ...skillHandlers,
   ...knowledgeHandlers,

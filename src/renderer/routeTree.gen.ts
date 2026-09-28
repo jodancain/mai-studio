@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/app'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as AppAgentGroupChatsRouteImport } from './routes/app/agent-group-chats'
 import { Route as AppAgentsRouteImport } from './routes/app/agents'
 import { Route as AppBrowserRouteImport } from './routes/app/browser'
 import { Route as AppChatRouteImport } from './routes/app/chat'
@@ -78,6 +79,11 @@ const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AppAgentGroupChatsRoute = AppAgentGroupChatsRouteImport.update({
+  id: '/agent-group-chats',
+  path: '/agent-group-chats',
+  getParentRoute: () => AppRoute,
 } as any)
 const AppAgentsRoute = AppAgentsRouteImport.update({
   id: '/agents',
@@ -373,6 +379,7 @@ const SettingsMcpSettingsServerIdRoute =
 export interface FileRoutesByFullPath {
   '/app': typeof AppRouteWithChildren
   '/settings': typeof SettingsRouteWithChildren
+  '/app/agent-group-chats': typeof AppAgentGroupChatsRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
@@ -433,6 +440,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/app': typeof AppRouteWithChildren
+  '/app/agent-group-chats': typeof AppAgentGroupChatsRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
@@ -492,6 +500,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/app': typeof AppRouteWithChildren
   '/settings': typeof SettingsRouteWithChildren
+  '/app/agent-group-chats': typeof AppAgentGroupChatsRoute
   '/app/agents': typeof AppAgentsRoute
   '/app/browser': typeof AppBrowserRoute
   '/app/chat': typeof AppChatRoute
@@ -555,6 +564,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/app'
     | '/settings'
+    | '/app/agent-group-chats'
     | '/app/agents'
     | '/app/browser'
     | '/app/chat'
@@ -615,6 +625,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
+    | '/app/agent-group-chats'
     | '/app/agents'
     | '/app/browser'
     | '/app/chat'
@@ -673,6 +684,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/app'
     | '/settings'
+    | '/app/agent-group-chats'
     | '/app/agents'
     | '/app/browser'
     | '/app/chat'
@@ -752,6 +764,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/app/agent-group-chats': {
+      id: '/app/agent-group-chats'
+      path: '/agent-group-chats'
+      fullPath: '/app/agent-group-chats'
+      preLoaderRoute: typeof AppAgentGroupChatsRouteImport
+      parentRoute: typeof AppRoute
     }
     '/app/agents': {
       id: '/app/agents'
@@ -1156,6 +1175,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppAgentGroupChatsRoute: typeof AppAgentGroupChatsRoute
   AppAgentsRoute: typeof AppAgentsRoute
   AppBrowserRoute: typeof AppBrowserRoute
   AppChatRoute: typeof AppChatRoute
@@ -1174,6 +1194,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppAgentGroupChatsRoute: AppAgentGroupChatsRoute,
   AppAgentsRoute: AppAgentsRoute,
   AppBrowserRoute: AppBrowserRoute,
   AppChatRoute: AppChatRoute,

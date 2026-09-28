@@ -20,6 +20,8 @@ describe('endpoint classification', () => {
   it('pins the collection classification snapshot (update deliberately on schema changes)', () => {
     expectTypeOf<CollectionGetPaths>().toEqualTypeOf<
       | '/agent-channels'
+      | '/agent-group-chats'
+      | '/agent-group-chats/:groupChatId/messages'
       | '/agent-sessions'
       | '/agent-sessions/:sessionId/messages'
       | '/agent-tasks'

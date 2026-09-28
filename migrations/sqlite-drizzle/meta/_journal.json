@@ -175,6 +175,13 @@
       "when": 1789636472109,
       "tag": "0024_lying_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1790251694655,
+      "tag": "0025_curvy_black_tom",
+      "breakpoints": true
     }
   ],
   "version": "7"

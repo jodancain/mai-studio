@@ -9,7 +9,18 @@ function CoreReleaseRoute() {
   const pathname = useLocation({ select: (location) => location.pathname })
   const { t } = useTranslation()
   const feature = pathname.split('/')[2]
-  if (!['chat', 'agents', 'files', 'file-preview', 'knowledge', 'launchpad', 'release-notes'].includes(feature ?? '')) {
+  if (
+    ![
+      'chat',
+      'agents',
+      'agent-group-chats',
+      'files',
+      'file-preview',
+      'knowledge',
+      'launchpad',
+      'release-notes'
+    ].includes(feature ?? '')
+  ) {
     return <Alert className="m-4" description={t('release.core_unavailable')} />
   }
   return <Outlet />
