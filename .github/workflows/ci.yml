@@ -193,12 +193,14 @@ jobs:
           pnpm i18n:unused:check
 
       - name: Read-only Checks
+        timeout-minutes: 20
+        env:
+          GOMEMLIMIT: 2GiB
         run: |
-          # Share one checkout/install while keeping independent checks parallel.
-          # Do not kill sibling checks on failure so every failure is reported.
-          # `--max-processes 1` lands on the typecheck script's trailing concurrently call and
-          # serializes it: eslint plus two concurrent tsgo runs OOM the runner mid-job.
+          # Private runners have 2 CPUs and 8 GB RAM; serialize groups to reduce peak memory.
+          # Keep typechecks serialized within their group as well.
           pnpm exec concurrently \
+            --max-processes 1 \
             --names "Lint,Type and Hardcoded Strings,Format and Repository,Docs" \
             --prefix-colors "blue,yellow,cyan,green" \
             "pnpm test:lint" \
