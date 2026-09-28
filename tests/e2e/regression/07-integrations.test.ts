@@ -33,10 +33,12 @@ async function openSkillsPanel(page: Parameters<typeof selectSidebarApp>[0]): Pr
 
 test(...caseDefinition('MCP-01'), async ({ app, mainWindow: page }) => {
   await openSettingsSection(page, 'MCP')
+  // waitFor-bounded: an instant isVisible() races the settings list's first paint.
   if (
     !(await page
       .getByText('everything', { exact: true })
-      .isVisible()
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
       .catch(() => false))
   ) {
     await page.getByRole('button', { name: 'Add', exact: true }).click()
@@ -131,10 +133,12 @@ test(...caseDefinition('A-02'), async ({ app, mainWindow: page }) => {
   const isMaiCore = readRun(app.paths.runState).metadata.task === 'mai-core'
   if (!isMaiCore) await ensureCustomChatProvider(app, page)
   await openSettingsSection(page, 'Skills')
+  // waitFor-bounded: an instant isVisible() races the settings list's first paint.
   if (
     !(await page
       .getByRole('heading', { name: 'cherry-regression-fixture', exact: true })
-      .isVisible()
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => true)
       .catch(() => false))
   ) {
     await page.getByRole('button', { name: 'Add Skill', exact: true }).click()
