@@ -563,6 +563,39 @@ describe('TopicStreamSubscription', () => {
     sub.dispose()
   })
 
+  it.each(['error', 'paused'] as const)(
+    'preserves each execution outcome when a mixed %s topic finishes during attach',
+    async (status) => {
+      const attach = Promise.withResolvers<AiStreamAttachResponse>()
+      mock.mockApi.streamAttach.mockReturnValueOnce(attach.promise)
+      const sub = new TopicStreamSubscription(TOPIC)
+      const terminals: Array<{ id: string; isAbort: boolean; isError: boolean }> = []
+      sub.onExecutionTerminal((id, terminal) => terminals.push({ id, ...terminal }))
+      sub.listen()
+      mock.emitChunk(TOPIC, A, textChunk('successful answer'), undefined, 1, 1)
+      mock.emitChunk(TOPIC, B, textChunk('partial answer'), undefined, 2, 1)
+      const successful = sub.register(A, undefined, 1)
+      const interrupted = sub.register(B, undefined, 2)
+      mock.emitDone(TOPIC, A, 'success', false, undefined, 1)
+      if (status === 'error') mock.emitError(TOPIC, B, true, undefined, 2, 2)
+      else mock.emitDone(TOPIC, B, 'paused', true, undefined, 2, 2)
+      attach.resolve(
+        status === 'error' ? { status: 'error', error: STREAM_ERROR } : { status: 'done', finalMessages: {} }
+      )
+
+      expect(await readAll(successful)).toEqual([textChunk('successful answer')])
+      expect(await readAll(interrupted)).toEqual([
+        textChunk('partial answer'),
+        ...(status === 'error' ? [{ type: 'data-error', data: STREAM_ERROR }] : [])
+      ])
+      expect(terminals).toEqual([
+        { id: A, attemptId: 1, isAbort: false, isError: false },
+        { id: B, attemptId: 2, isAbort: status === 'paused', isError: status === 'error' }
+      ])
+      sub.dispose()
+    }
+  )
+
   it('keeps a newer attempt behind its own replay boundary when an older attach reports done', async () => {
     const firstAttach = Promise.withResolvers<AiStreamAttachResponse>()
     const nextAttach = Promise.withResolvers<AiStreamAttachResponse>()
@@ -573,6 +606,7 @@ describe('TopicStreamSubscription', () => {
     mock.emitDone(TOPIC, A, 'success', false, undefined, 1)
     mock.emitChunk(TOPIC, A, textChunk('new'), undefined, 2, 1)
     const next = sub.register(A, undefined, 2)
+    mock.emitDone(TOPIC, A, 'success', true, undefined, 2)
     firstAttach.resolve({ status: 'done', finalMessages: {} })
     await tick()
     nextAttach.resolve({
@@ -581,10 +615,34 @@ describe('TopicStreamSubscription', () => {
       replayWatermarks: [{ executionId: A, attemptId: 2, sequence: 1 }]
     })
     await tick()
-    mock.emitDone(TOPIC, A, 'success', true, undefined, 2)
 
     expect(await readAll(first)).toEqual([textChunk('old')])
     expect(await readAll(next)).toEqual([textChunk('new')])
+    sub.dispose()
+  })
+
+  it('drains a later registered sibling before applying a queued topic terminal watermark', async () => {
+    const firstAttach = Promise.withResolvers<AiStreamAttachResponse>()
+    mock.mockApi.streamAttach
+      .mockReturnValueOnce(firstAttach.promise)
+      .mockResolvedValueOnce({ status: 'done', finalMessages: {} })
+    const sub = new TopicStreamSubscription(TOPIC)
+    const terminals: Array<{ id: string; isAbort: boolean; isError: boolean }> = []
+    sub.onExecutionTerminal((id, terminal) => terminals.push({ id, ...terminal }))
+    const successful = sub.register(A, undefined, 1)
+    mock.emitChunk(TOPIC, A, textChunk('successful answer'), undefined, 1, 1)
+    mock.emitChunk(TOPIC, B, textChunk('paused answer'), undefined, 2, 1)
+    const paused = sub.register(B, undefined, 2)
+    mock.emitDone(TOPIC, B, 'paused', false, undefined, 2)
+    mock.emitDone(TOPIC, A, 'success', true, undefined, 1, 2)
+    firstAttach.resolve({ status: 'done', finalMessages: {} })
+
+    expect(await readAll(successful)).toEqual([textChunk('successful answer')])
+    expect(await readAll(paused)).toEqual([textChunk('paused answer')])
+    expect(terminals).toEqual([
+      { id: B, attemptId: 2, isAbort: true, isError: false },
+      { id: A, attemptId: 1, isAbort: false, isError: false }
+    ])
     sub.dispose()
   })
 

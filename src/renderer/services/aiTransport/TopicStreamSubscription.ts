@@ -76,7 +76,7 @@ export class TopicStreamSubscription {
   #topicOpen = false
   #terminalAttemptWatermark: number | undefined
   #pendingChunks: StreamChunkPayload[] = []
-  #pendingTerminals: Array<() => void> = []
+  #pendingTerminals: Array<{ key?: string; deliver: () => void }> = []
   readonly #replayWatermarks = new Map<string, number>()
 
   constructor(topicId: string) {
@@ -427,7 +427,7 @@ export class TopicStreamSubscription {
       ipcApi.on('ai.stream.chunk', (data) => this.#routeChunk(data)),
       ipcApi.on('ai.stream.done', (data) => {
         if (data.topicId !== this.#topicId) return
-        this.#runOrDeferTerminal(() => {
+        this.#runOrDeferTerminal(data, () => {
           const topicStateChanged = this.#updateTopicOpen(data.isTopicDone)
           const terminal: ExecutionTerminal = {
             ...(data.attemptId !== undefined ? { attemptId: data.attemptId } : {}),
@@ -446,7 +446,7 @@ export class TopicStreamSubscription {
       }),
       ipcApi.on('ai.stream.error', (data) => {
         if (data.topicId !== this.#topicId) return
-        this.#runOrDeferTerminal(() => {
+        this.#runOrDeferTerminal(data, () => {
           const topicStateChanged = this.#updateTopicOpen(data.isTopicDone)
           this.#enqueueError(
             data.error,
@@ -473,9 +473,16 @@ export class TopicStreamSubscription {
     )
   }
 
-  #runOrDeferTerminal(deliver: () => void): void {
+  #runOrDeferTerminal(
+    identity: Pick<StreamChunkPayload, 'executionId' | 'anchorMessageId' | 'attemptId'>,
+    deliver: () => void
+  ): void {
     if (!this.#attached && (this.#attachInFlight || this.#pendingChunks.length > 0)) {
-      this.#pendingTerminals.push(deliver)
+      const key =
+        identity.executionId && identity.attemptId !== undefined
+          ? branchKey(identity.executionId, identity.anchorMessageId, identity.attemptId)
+          : undefined
+      this.#pendingTerminals.push({ key, deliver })
       void this.#ensureAttached()
     } else deliver()
   }
@@ -508,7 +515,23 @@ export class TopicStreamSubscription {
               this.#routeChunk(payload)
             } else this.#pendingChunks.push(payload)
           }
+          const hasUnreplayedBranch = [...this.#branches.entries()].some(
+            ([key, branch]) => !branch.closed && !attachedKeys.has(key)
+          )
+          if (!hasUnreplayedBranch) {
+            for (const terminal of this.#pendingTerminals.splice(0)) {
+              if (terminal.key && attachedKeys.has(terminal.key)) terminal.deliver()
+              else this.#pendingTerminals.push(terminal)
+            }
+          }
         }
+        // Precise outcomes waiting for a newer branch's replay must also survive this fallback.
+        const pendingTerminalKeys = new Set(this.#pendingTerminals.map(({ key }) => key))
+        const unsettledBranchesAtAttach = branchesAtAttach.filter(
+          (branch) =>
+            !branch.closed &&
+            !pendingTerminalKeys.has(branchKey(branch.executionId, branch.anchorMessageId, branch.attemptId))
+        )
         switch (res.status) {
           case 'attached':
             for (const watermark of res.replayWatermarks ?? []) {
@@ -519,27 +542,27 @@ export class TopicStreamSubscription {
             }
             for (const payload of res.bufferedChunks) this.#routeChunk(payload, true)
             for (const payload of this.#pendingChunks.splice(0)) this.#routeChunk(payload)
-            for (const deliver of this.#pendingTerminals.splice(0)) deliver()
+            for (const { deliver } of this.#pendingTerminals.splice(0)) deliver()
             break
           case 'not-found':
           case 'done':
-            this.#terminateBranches(branchesAtAttach, { isAbort: false, isError: false })
+            this.#terminateBranches(unsettledBranchesAtAttach, { isAbort: false, isError: false })
             break
           case 'paused':
-            this.#terminateBranches(branchesAtAttach, { isAbort: true, isError: false })
+            this.#terminateBranches(unsettledBranchesAtAttach, { isAbort: true, isError: false })
             break
           case 'error':
             if (res.error) {
-              this.#enqueueErrorToBranches({ type: 'data-error', data: { ...res.error } }, branchesAtAttach)
+              this.#enqueueErrorToBranches({ type: 'data-error', data: { ...res.error } }, unsettledBranchesAtAttach)
             }
-            this.#terminateBranches(branchesAtAttach, { isAbort: false, isError: true })
+            this.#terminateBranches(unsettledBranchesAtAttach, { isAbort: false, isError: true })
             break
         }
         shouldReattach = res.status !== 'attached' && this.hasAnyOpenBranch()
         if (shouldReattach) this.#attached = false
         else {
           this.#pendingChunks = []
-          for (const deliver of this.#pendingTerminals.splice(0)) deliver()
+          for (const { deliver } of this.#pendingTerminals.splice(0)) deliver()
         }
         // If every execution unregistered while this attach was in flight, the
         // deferred-detach guard in `unregister` saw `#attached === false` and skipped,
