@@ -8,6 +8,7 @@ vi.mock('@renderer/i18n/resolver', () => ({
         'common.chat': '聊天',
         'agent.session.group.conversation': '对话',
         'agent.sidebar_title': '任务',
+        'agent.group_chat.title': '群聊',
         'title.work': '工作',
         'title.paintings': '绘画',
         'title.translate': '翻译',
@@ -42,6 +43,7 @@ describe('routeTitle', () => {
       it.each([
         ['/app/chat', '对话'],
         ['/app/agents', '工作'],
+        ['/app/agent-group-chats', '群聊'],
         ['/app/paintings', '绘画'],
         ['/app/translate', '翻译'],
         ['/app/mini-app', '小程序'],
@@ -69,6 +71,7 @@ describe('routeTitle', () => {
     describe('URL with query params and hash', () => {
       it('should handle URLs with query parameters', () => {
         expect(getDefaultRouteTitle('/app/chat?topicId=123')).toBe('对话')
+        expect(getDefaultRouteTitle('/app/agent-group-chats?groupChatId=room-1')).toBe('群聊')
         expect(getDefaultRouteTitle('/settings/provider?id=openai')).toBe('设置')
       })
 
