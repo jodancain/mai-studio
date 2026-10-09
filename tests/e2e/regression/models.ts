@@ -2,7 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 import type { RegressionApp } from './RegressionApp'
-import { closeOpenSettingsDrawer, openSettingsSection } from './settings'
+import { closeOpenSettingsDrawer, openProviderSettings } from './settings'
 
 export const CUSTOM_CHAT_PROVIDER = 'Cherry Regression Provider'
 
@@ -50,15 +50,15 @@ export async function skipNewProviderModelSetup(page: Page): Promise<void> {
 
 export async function ensureCustomChatProvider(app: RegressionApp, page: Page): Promise<string> {
   const { baseUrl, anthropicBaseUrl, apiKey, chatModel } = app.config.customProvider
-  await openSettingsSection(page, 'Model Provider')
+  await openProviderSettings(page)
+  const addProvider = page.getByRole('button', { name: 'Add Provider', exact: true })
   const providerItem = page
     .locator('[data-testid^="provider-list-item-"]')
     .filter({ hasText: CUSTOM_CHAT_PROVIDER })
     .first()
 
-  await expect(page.getByRole('button', { name: 'Add Provider', exact: true })).toBeVisible()
   if ((await providerItem.count()) === 0) {
-    await page.getByRole('button', { name: 'Add Provider', exact: true }).click()
+    await addProvider.click()
     await page.getByPlaceholder('Example: OpenAI', { exact: true }).fill(CUSTOM_CHAT_PROVIDER)
     const apiKeyInput = page.getByRole('textbox', { name: 'API Key', exact: true })
     await expect(apiKeyInput).toHaveAttribute('type', 'password')

@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 
+import { productName } from '../../../package.json'
 import type { RunPaths } from './paths'
 import { isPathInside } from './paths'
 import type { Platform } from './types'
@@ -71,7 +72,10 @@ export function installReleaseArtifact(
       env: environment
     })
     executablePath =
-      findFile(installedPath, (candidate) => basename(candidate).toLowerCase() === 'cherry studio.exe') ?? ''
+      findFile(
+        installedPath,
+        (candidate) => basename(candidate).toLowerCase() === `${productName.toLowerCase()}.exe`
+      ) ?? ''
   }
 
   if (!executablePath || !existsSync(executablePath)) throw new Error('Installed mai studio executable was not found')

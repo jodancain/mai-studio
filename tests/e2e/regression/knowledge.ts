@@ -7,7 +7,7 @@ import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomati
 import { selectVisibleModel, skipNewProviderModelSetup } from './models'
 import { selectSidebarApp } from './navigation'
 import type { RegressionApp } from './RegressionApp'
-import { openSettingsSection } from './settings'
+import { openProviderSettings } from './settings'
 
 export const EMBEDDING_PROVIDER = 'Cherry Regression Embedding'
 export function knowledgeName(app: RegressionApp): string {
@@ -16,7 +16,7 @@ export function knowledgeName(app: RegressionApp): string {
 
 export async function ensureEmbeddingProvider(app: RegressionApp, page: Page): Promise<void> {
   const { baseUrl, apiKey, model } = app.config.customEmbeddingProvider
-  await openSettingsSection(page, 'Model Provider')
+  await openProviderSettings(page)
   const providerItem = page
     .locator('[data-testid^="provider-list-item-"]')
     .filter({ hasText: EMBEDDING_PROVIDER })

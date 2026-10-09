@@ -7,10 +7,10 @@ import {
   sendCherryInCallbackToOwnedApp
 } from '../../../scripts/e2e/regression/debugBridge'
 import type { RegressionApp } from './RegressionApp'
-import { openSettingsSection } from './settings'
+import { openProviderSettings } from './settings'
 
 export async function ensureCherryInSignedIn(app: RegressionApp, page: Page): Promise<void> {
-  await openSettingsSection(page, 'Model Provider')
+  await openProviderSettings(page)
   await page.getByTestId('provider-list-item-cherryin').click()
   const authorize = page.getByRole('button', { name: 'Authorize with CherryIN', exact: true })
   const logout = page.getByRole('button', { name: 'Logout', exact: true })
@@ -37,7 +37,7 @@ export async function ensureCherryInSignedIn(app: RegressionApp, page: Page): Pr
         { timeout: 60_000 }
       )
       .toBe(true)
-    await openSettingsSection(page, 'Model Provider')
+    await openProviderSettings(page)
     const cherryIn = page.getByTestId('provider-list-item-cherryin')
     await cherryIn.click()
     await expect(cherryIn).toHaveAttribute('data-selected', 'true')

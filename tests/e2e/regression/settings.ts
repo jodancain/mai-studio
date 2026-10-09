@@ -31,6 +31,15 @@ export async function openSettingsSection(page: Page, section: string): Promise<
   await sectionButton.click()
 }
 
+export async function openProviderSettings(page: Page): Promise<void> {
+  await openSettingsSection(page, 'Model Provider')
+  const addProvider = page.getByRole('button', { name: 'Add Provider', exact: true })
+  const providerSettings = page.getByRole('button', { name: 'Provider settings', exact: true })
+  await expect(addProvider.or(providerSettings).first()).toBeVisible()
+  if (!(await addProvider.isVisible())) await providerSettings.click()
+  await expect(addProvider).toBeVisible()
+}
+
 export async function closeSettings(page: Page): Promise<void> {
   await closeOpenSettingsDrawer(page)
   await page.getByRole('button', { name: 'Back', exact: true }).first().click()
