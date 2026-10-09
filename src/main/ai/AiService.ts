@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { isDeepStrictEqual } from 'node:util'
 
 import {
@@ -8,13 +8,16 @@ import {
   type ModelMessage,
   type UIMessageChunk
 } from 'ai'
+import * as z from 'zod'
 
 import { application } from '@application'
 import {
   type AiPlugin,
   embedMany as aiCoreEmbedMany,
   generateImage as aiCoreGenerateImage,
+  generateText as aiCoreGenerateText,
   rerank as aiCoreRerank,
+  streamText as aiCoreStreamText,
   type RuntimeProviderCallEvent,
   type RuntimeProviderCallHandler
 } from '@cherrystudio/ai-core'
@@ -44,9 +47,10 @@ import type { JobSnapshot } from '@shared/data/api/schemas/jobs'
 import { type Assistant } from '@shared/data/types/assistant'
 import type { CleanupPolicy, FileEntry } from '@shared/data/types/file'
 import type { ImageGenerationMode } from '@shared/data/types/model'
-import { type Model, type UniqueModelId, parseUniqueModelId } from '@shared/data/types/model'
+import { ENDPOINT_TYPE, type Model, type UniqueModelId, parseUniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type { Base64String, CreateInternalEntryIpcParams, UrlString } from '@shared/types/file'
+import type { ModelApiProbeKind } from '@shared/types/modelApiDiagnostics'
 import {
   isEmbeddingModel,
   isFunctionCallingModel,
@@ -70,7 +74,7 @@ import type { ImageGenerationJobOutput, ImageGenerationJobPayload } from './prov
 import { buildVendorProviderOptions } from './provider/custom/wire/buildImageRequest'
 import { DEFAULT_DIFFUSION_REGISTRATION, WIRE_REGISTRY } from './provider/custom/wire/wireProfile'
 import { resolveEffectiveEndpoint, resolveWireModelId } from './provider/endpoint'
-import { listModels as listModelsFromProvider, probeOllamaModel } from './provider/listModels'
+import { listModels as listModelsFromProvider, listModelsDetailed, probeOllamaModel } from './provider/listModels'
 import { resolveSdkConfig } from './provider/sdkConfig'
 import type { AgentLoopHooks, NativeFileSupport, RequestFeature } from './runtime/aiSdk'
 import {
@@ -94,6 +98,7 @@ import type {
   InProcessUsageContext,
   ListModelsRequest
 } from './types'
+import { appProviderIds } from './types'
 import { installProviderUserAgentInterceptor } from './utils/customFetch'
 import { type SplitImageParams, splitParamValues } from './utils/imageOptions'
 import { normalizeImageEditInputs } from './utils/normalizeImageEditInputs'
@@ -1246,7 +1251,7 @@ export class AiService extends BaseService {
         presetProviderId: provider.presetProviderId ?? null
       })
     }
-    const remoteModels = await listModelsFromProvider(provider, undefined, { throwOnError: request.throwOnError })
+    const remoteModels = await listModelsFromProvider(provider, request.signal, { throwOnError: request.throwOnError })
     if (!provider.supplementModelsFromRegistry) {
       return remoteModels
     }
@@ -1257,9 +1262,103 @@ export class AiService extends BaseService {
     return mergeProviderModelsWithRegistry(remoteModels, registryModels)
   }
 
+  async fetchModelsDetailed(
+    providerId: string,
+    options: { signal?: AbortSignal; source?: 'configured' | 'provider_api' } = {}
+  ) {
+    options.signal?.throwIfAborted()
+    const provider = providerService.getByProviderId(providerId)
+    if (provider.modelListSource === 'registry' && options.source !== 'provider_api') {
+      return {
+        models: providerRegistryService.listProviderRegistryModels({
+          providerId,
+          presetProviderId: provider.presetProviderId ?? null
+        }),
+        completeness: 'unsupported' as const,
+        source: 'registry' as const
+      }
+    }
+    const result = await listModelsDetailed(provider, options.signal)
+    options.signal?.throwIfAborted()
+    return { ...result, source: 'provider_api' as const }
+  }
+
   /** Captures one model configuration for related probes without re-reading changing settings. */
   prepareModelCheck(uniqueModelId: UniqueModelId) {
     const resolvedModel = structuredClone(this.getProviderAndModel({ uniqueModelId }))
+    const credentials = this.modelCheckCredentialStamp(resolvedModel.provider.id)
+    return this.prepareCapturedModelCheck(resolvedModel, () => {
+      try {
+        return (
+          isDeepStrictEqual(this.getProviderAndModel({ uniqueModelId }), resolvedModel) &&
+          this.modelCheckCredentialStamp(resolvedModel.provider.id) === credentials
+        )
+      } catch (error) {
+        if (isDataApiNotFoundError(error)) return false
+        throw error
+      }
+    })
+  }
+
+  /** Prepares an unpersisted candidate using only the provider's existing transport. */
+  prepareResolvedModelCheck(input: { providerId: string; model: Model; isCurrent?: () => boolean }) {
+    const provider = structuredClone(providerService.getByProviderId(input.providerId))
+    const credentials = this.modelCheckCredentialStamp(provider.id)
+    const model = structuredClone(input.model)
+    if (model.providerId !== provider.id || parseUniqueModelId(model.id).providerId !== provider.id) {
+      throw new Error('Model check provider does not match the candidate')
+    }
+    const endpoint = resolveEffectiveEndpoint(provider, model)
+    const endpointConfig = endpoint.endpointType ? provider.endpointConfigs?.[endpoint.endpointType] : undefined
+    const adapter = endpointConfig?.adapterFamily
+    if (
+      !endpoint.endpointType ||
+      !Object.values(ENDPOINT_TYPE).includes(endpoint.endpointType) ||
+      !endpointConfig?.baseUrl ||
+      (adapter !== undefined && !(adapter in appProviderIds)) ||
+      (adapter === undefined &&
+        endpoint.endpointType !== ENDPOINT_TYPE.OPENAI_CHAT_COMPLETIONS &&
+        endpoint.endpointType !== ENDPOINT_TYPE.OPENAI_RESPONSES)
+    ) {
+      throw new Error('Model check requires an existing supported endpoint')
+    }
+    return this.prepareCapturedModelCheck({ provider, model }, () => {
+      try {
+        return (
+          isDeepStrictEqual(providerService.getByProviderId(provider.id), provider) &&
+          this.modelCheckCredentialStamp(provider.id) === credentials &&
+          (input.isCurrent?.() ?? true)
+        )
+      } catch (error) {
+        if (isDataApiNotFoundError(error)) return false
+        throw error
+      }
+    })
+  }
+
+  private modelCheckCredentialStamp(providerId: string): string {
+    const auth = providerService.getAuthConfig(providerId)
+    const identity =
+      auth?.type === 'oauth'
+        ? {
+            type: auth.type,
+            clientId: auth.clientId,
+            accountId: auth.accountId,
+            refreshToken: auth.refreshToken,
+            ...(auth.refreshToken ? {} : { accessToken: auth.accessToken })
+          }
+        : auth
+    return createHash('sha256')
+      .update(
+        JSON.stringify({
+          apiKeys: providerService.getApiKeys(providerId, { enabled: true }),
+          auth: identity
+        })
+      )
+      .digest('hex')
+  }
+
+  private prepareCapturedModelCheck(resolvedModel: { provider: Provider; model: Model }, isCurrent: () => boolean) {
     const { provider, model } = resolvedModel
     const endpoint = resolveEffectiveEndpoint(provider, model)
     const primaryEndpoint = model.endpointTypes?.[0]
@@ -1267,15 +1366,9 @@ export class AiService extends BaseService {
     return {
       uniqueModelId: model.id,
       modelName: model.name,
-      isCurrent: () => {
-        try {
-          return isDeepStrictEqual(this.getProviderAndModel({ uniqueModelId }), resolvedModel)
-        } catch (error) {
-          if (isDataApiNotFoundError(error)) return false
-          throw error
-        }
-      },
+      isCurrent,
       modelId: resolveWireModelId(model, endpoint.endpointType),
+      endpointType: endpoint.endpointType,
       baseUrl: routeToEndpoint(endpoint.baseUrl).baseURL,
       supportsModelListing: provider.modelListSource !== 'registry',
       isExternalCli: isExternalCliProvider(provider),
@@ -1293,8 +1386,26 @@ export class AiService extends BaseService {
         )
       },
       checkConversation: (signal: AbortSignal) =>
-        this.checkModel({ uniqueModelId, resolvedModel, requestOptions: { signal, maxRetries: 0 } }, { chatOnly: true })
+        this.checkPreparedModel(resolvedModel, isCurrent, 'conversation', signal),
+      checkStreaming: (signal: AbortSignal) => this.checkPreparedModel(resolvedModel, isCurrent, 'streaming', signal),
+      checkTools: (signal: AbortSignal) => this.checkPreparedModel(resolvedModel, isCurrent, 'tools', signal)
     }
+  }
+
+  private async checkPreparedModel(
+    resolvedModel: { provider: Provider; model: Model },
+    isCurrent: () => boolean,
+    kind: ModelApiProbeKind,
+    signal: AbortSignal
+  ) {
+    signal.throwIfAborted()
+    if (!isCurrent()) throw new Error('Model check configuration changed')
+    const result = await this.checkModel(
+      { resolvedModel, requestOptions: { signal, maxRetries: 0 } },
+      { chatOnly: true, kind }
+    )
+    if (!isCurrent()) throw new Error('Model check configuration changed')
+    return result
   }
 
   // ── API validation ──
@@ -1302,7 +1413,7 @@ export class AiService extends BaseService {
   /** Dispatches rerank first, then prefers text for chat-primary models over embedding. */
   async checkModel(
     request: AsInProcess<AiRequest> & { timeout?: number },
-    options?: { chatOnly: boolean }
+    options?: { chatOnly: boolean; kind?: ModelApiProbeKind }
   ): Promise<{ latency: number }> {
     request.requestOptions?.signal?.throwIfAborted()
     const { provider, model } = this.getProviderAndModel(request)
@@ -1323,10 +1434,12 @@ export class AiService extends BaseService {
       onAbort = () => reject(signal.reason)
       signal.addEventListener('abort', onAbort, { once: true })
     })
-    const probeRequest = { ...request, requestOptions: { ...request.requestOptions, signal } }
+    const probeRequest = { ...request, requestOptions: { ...request.requestOptions, signal, maxRetries: 0 } }
     try {
       let probe: Promise<unknown>
-      if (isOllamaProvider(provider) && !options?.chatOnly) {
+      if (options?.kind === 'streaming' || options?.kind === 'tools') {
+        probe = this.checkTextProtocol(probeRequest, options.kind, signal)
+      } else if (isOllamaProvider(provider) && !options?.chatOnly) {
         probe = probeOllamaModel(provider, model.apiModelId, signal, request.apiKeyOverride)
       } else if (!options?.chatOnly && isRerankModel(model)) {
         probe = this.rerank({ ...probeRequest, query: 'test', documents: ['test'], topN: 1 }).then((result) => {
@@ -1416,7 +1529,11 @@ export class AiService extends BaseService {
           conversation: { id: `check:${randomUUID()}` },
           system: 'test',
           prompt: 'hi',
-          reasoningEffort: 'none'
+          reasoningEffort: 'none',
+          callOverrides: { maxOutputTokens: 64 }
+        }).then((result) => {
+          if (!result.text.trim()) throw new Error('Model health check returned empty text')
+          return result
         })
       }
 
@@ -1426,6 +1543,85 @@ export class AiService extends BaseService {
     } finally {
       clearTimeout(timeoutHandle)
       signal.removeEventListener('abort', onAbort)
+    }
+  }
+
+  private async checkTextProtocol(request: AsInProcess<AiRequest>, kind: 'streaming' | 'tools', signal: AbortSignal) {
+    const prepared = await this.buildAgentParamsFor(
+      {
+        ...request,
+        conversation: { id: `check:${randomUUID()}` },
+        contextOwner: 'caller',
+        reasoningEffort: 'none',
+        callOverrides: { maxOutputTokens: 64 }
+      },
+      signal
+    )
+    signal.throwIfAborted()
+    const { sdkConfig, provider, model, credentialReceipt, options } = prepared
+    const plugins = [
+      ...prepared.plugins,
+      createAiUsagePlugin(
+        createCaptureContext({
+          provider,
+          model,
+          sdkModelId: sdkConfig.modelId,
+          credentialReceipt,
+          source: null,
+          messageRef: null
+        })
+      )
+    ]
+    const params = {
+      model: sdkConfig.modelId,
+      maxOutputTokens: 64,
+      maxRetries: 0,
+      abortSignal: signal,
+      headers: options.headers,
+      providerOptions: options.providerOptions,
+      prompt: 'Reply with OK.'
+    }
+    if (kind === 'streaming') {
+      const result = await aiCoreStreamText<AppProviderSettingsMap>(
+        sdkConfig.providerId,
+        sdkConfig.providerSettings,
+        params,
+        plugins
+      )
+      let text = ''
+      let finished = false
+      for await (const part of result.fullStream) {
+        signal.throwIfAborted()
+        if (part.type === 'error') throw part.error
+        if (part.type === 'abort') throw new Error('Model health check stream aborted')
+        if (part.type === 'text-delta') text += part.text
+        if (part.type === 'finish') finished = ['stop', 'length'].includes(part.finishReason)
+      }
+      if (!finished || !text.trim()) throw new Error('Model health check stream did not complete with text')
+      return
+    }
+    const inputSchema = z.strictObject({ value: z.literal('ok') })
+    const result = await aiCoreGenerateText<AppProviderSettingsMap>(
+      sdkConfig.providerId,
+      sdkConfig.providerSettings,
+      {
+        ...params,
+        prompt: 'Call diagnostic_echo with value "ok". Do not answer with text.',
+        tools: {
+          diagnostic_echo: { description: 'Validate a diagnostic argument without executing any action.', inputSchema }
+        },
+        toolChoice: { type: 'tool', toolName: 'diagnostic_echo' }
+      },
+      plugins
+    )
+    signal.throwIfAborted()
+    if (
+      result.finishReason !== 'tool-calls' ||
+      result.toolCalls.length !== 1 ||
+      result.toolCalls[0].toolName !== 'diagnostic_echo' ||
+      !inputSchema.safeParse(result.toolCalls[0].input).success
+    ) {
+      throw new Error('Model health check returned an invalid diagnostic tool call')
     }
   }
 

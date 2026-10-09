@@ -11,6 +11,21 @@ export const route = '/settings/provider'
 
 export const entries: SettingsSearchEntry[] = [
   {
+    anchorId: 'api-checks',
+    titleKey: 'settings.model_api.api',
+    aliases: ['api check', 'API 检查', '检测']
+  },
+  {
+    anchorId: 'model-updates',
+    titleKey: 'settings.model_api.updates',
+    aliases: ['model updates', '模型更新', '注册表']
+  },
+  {
+    anchorId: 'auto-adaptation',
+    titleKey: 'settings.model_api.adapt',
+    aliases: ['adaptation', '自动适配']
+  },
+  {
     anchorId: 'api-key',
     titleKey: 'settings.provider.api_key.label',
     aliases: ['api key', 'key', 'secret']

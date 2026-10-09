@@ -7,6 +7,10 @@ import type { Currency } from '@shared/data/types/model'
 import type { AutoBackupEvent, AutoBackupType } from '@shared/types/backup'
 import type { AbsoluteFilePath } from '@shared/types/file'
 import type { ManagedToolStatusState } from '@shared/types/managedTool'
+import type { ModelApiCatalogState } from '@shared/types/modelApiCatalog'
+import { DEFAULT_MODEL_API_CATALOG_STATE } from '@shared/types/modelApiCatalog'
+import type { ModelApiDiagnosticsState } from '@shared/types/modelApiDiagnostics'
+import { INITIAL_MODEL_API_DIAGNOSTICS_STATE } from '@shared/types/modelApiDiagnostics'
 import type { StorageHealth } from '@shared/types/storageMonitor'
 
 import type { TopicStatusSnapshotEntry } from '../../ai/transport'
@@ -288,6 +292,8 @@ export type SharedCacheSchema = {
   'mcp.tools.${serverId}': CacheValueTypes.CacheMcpTool[]
   'mcp.status.${serverId}': CacheValueTypes.McpRuntimeStatus
   'doctor.state.${scope}': CacheValueTypes.CacheDoctorState
+  'model_api.diagnostics': ModelApiDiagnosticsState
+  'model_api.catalog': ModelApiCatalogState
   'network.online': boolean
   // Runtime-only opt-out shared across windows; resets when the app exits.
   'agent.model_switch_confirmation.skipped': boolean
@@ -352,6 +358,8 @@ export const DefaultSharedCache: SharedCacheSchema = {
   'mcp.tools.${serverId}': [],
   'mcp.status.${serverId}': { state: 'disabled', lastCheckedAt: 0 },
   'doctor.state.${scope}': { status: 'idle' },
+  'model_api.diagnostics': structuredClone(INITIAL_MODEL_API_DIAGNOSTICS_STATE),
+  'model_api.catalog': structuredClone(DEFAULT_MODEL_API_CATALOG_STATE),
   'network.online': true,
   'agent.model_switch_confirmation.skipped': false,
   'agent.session.compaction.${sessionId}': null,

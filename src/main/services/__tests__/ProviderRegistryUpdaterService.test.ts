@@ -1,334 +1,207 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
-const { netFetchMock, getCatalogVersionMock, notifyDataChangeMock, readActiveManifestMock, writeSnapshotMock } =
-  vi.hoisted(() => ({
-    netFetchMock: vi.fn(),
-    getCatalogVersionMock: vi.fn(),
-    notifyDataChangeMock: vi.fn(),
-    readActiveManifestMock: vi.fn(),
-    writeSnapshotMock: vi.fn()
-  }))
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@main/services/AppUpdaterService', () => ({ RELEASE_HISTORY_URL: 'https://updates.example' }))
-vi.mock('@main/services/cherryCloud/CherryCloudService', () => ({
-  resolveCherryCloudApiOrigin: () => 'https://cloud.example'
-}))
-vi.mock('@main/services/diagnostics', () => ({ DIAGNOSTIC_UPLOAD_URL: 'https://diagnostics.example' }))
-
-vi.mock('@logger', () => ({
-  loggerService: {
-    withContext: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() })
-  }
-}))
-
-vi.mock('@main/core/lifecycle', () => ({
-  BaseService: class {},
-  Injectable: () => (target: unknown) => target,
-  ServicePhase: () => (target: unknown) => target,
-  Phase: { WhenReady: 'whenReady' }
-}))
-
-vi.mock('@application', async () => {
-  const { mockApplicationFactory } = await import('@test-mocks/main/application')
-  const result = mockApplicationFactory()
-  const originalGet = result.application.get.getMockImplementation()!
-  result.application.get.mockImplementation((name: string) =>
-    name === 'ProxyService' ? { appliedProxyKey: 'direct||' } : originalGet(name)
-  )
-  return result
-})
-vi.mock('@main/utils/systemInfo', () => ({ generateUserAgent: () => 'test-ua' }))
+const { netFetch, country } = vi.hoisted(() => ({ netFetch: vi.fn(), country: vi.fn() }))
+vi.mock('electron', () => ({ app: { isPackaged: true, getVersion: () => '2.0.0' }, net: { fetch: netFetch } }))
+vi.mock('@main/services/RegionService', () => ({ regionService: { getCountry: country } }))
+vi.mock('@main/utils/systemInfo', () => ({ generateUserAgent: () => 'mai-test' }))
 vi.mock('@main/data/services/ProviderRegistryService', () => ({
-  providerRegistryService: { getCatalogVersion: getCatalogVersionMock }
+  providerRegistryService: { clearCache: vi.fn(), getCatalogVersion: vi.fn() }
 }))
-vi.mock('@main/data/dataApiDataChange', () => ({ notifyDataApiDataChange: notifyDataChangeMock }))
-vi.mock('@main/data/services/utils/registryDataPaths', () => ({
-  readActiveOverrideManifest: readActiveManifestMock
-}))
-vi.mock('@main/services/providerRegistrySnapshot', () => ({
-  writeProviderRegistrySnapshot: writeSnapshotMock
-}))
-// Keep the real manifest contract / remote file list / schema version;
-// stub only the heavy data-list schemas so catalog bodies validate trivially
-// (`.version` read straight off the parsed object).
-vi.mock('@cherrystudio/provider-registry/node', async () => {
-  const actual = await vi.importActual<Record<string, unknown>>('@cherrystudio/provider-registry/node')
-  const passthrough = { parse: (data: unknown) => data }
-  return {
-    ...actual,
-    ModelListSchema: passthrough,
-    ProviderListSchema: passthrough,
-    ProviderModelListSchema: passthrough
-  }
+vi.mock('@main/data/dataApiDataChange', () => ({ notifyDataApiDataChange: vi.fn() }))
+vi.mock('@main/utils/file', async () => {
+  const { atomicWriteFile } = await vi.importActual<{ atomicWriteFile: typeof WriteAtomic }>('@main/utils/file/fs')
+  return { atomicWriteFile }
 })
-vi.mock('electron', () => ({
-  app: { isPackaged: true, getVersion: () => '1.0.0' },
-  net: { fetch: netFetchMock }
-}))
 
-import { MockMainCacheServiceUtils } from '@test-mocks/main/CacheService'
-
+import { application } from '@application'
 import { REGISTRY_SCHEMA_VERSION } from '@cherrystudio/provider-registry/node'
+import { BaseService } from '@main/core/lifecycle'
+import { parseRegistryFile, registryContentVersion } from '@main/data/services/providerRegistryComposition'
+import { providerRegistryService } from '@main/data/services/ProviderRegistryService'
+import {
+  readActiveOverrideSnapshot,
+  readRegistrySourceRevision,
+  resolveRegistryPaths
+} from '@main/data/services/utils/registryDataPaths'
+import type { atomicWriteFile as WriteAtomic } from '@main/utils/file'
 
-import { builtinEndpoints } from '../network/endpoints'
 import {
   ProviderRegistryUpdaterService,
   REGISTRY_URL_GITCODE,
+  REGISTRY_URL_GITHUB,
   resolveRegistryBaseUrl
 } from '../ProviderRegistryUpdaterService'
-import { regionService } from '../RegionService'
 
-const response = (body: string, ok = true) => ({ ok, status: ok ? 200 : 404, text: async () => body })
+const file = (body: Record<string, unknown>) => JSON.stringify({ ...body, version: registryContentVersion(body) })
+const snapshot = (models: unknown[], overrides: unknown[]) => ({
+  'models.json': file({ models }),
+  'provider-models.json': file({ overrides })
+})
+const bundled = snapshot(
+  [
+    { id: 'mai', name: 'Bundled MAI' },
+    { id: 'fork-only', name: 'Fork only' }
+  ],
+  [{ providerId: 'mai', modelId: 'mai', apiModelId: 'mai-wire' }]
+)
+const remote = snapshot(
+  [
+    { id: 'mai', name: 'Untrusted name' },
+    { id: 'new', name: 'New model' }
+  ],
+  [
+    { providerId: 'mai', modelId: 'mai' },
+    { providerId: 'other', modelId: 'new' }
+  ]
+)
+const manifest = {
+  schemaVersion: REGISTRY_SCHEMA_VERSION,
+  minAppVersion: '1.0.0',
+  sourceAppVersion: '2.0.0',
+  revision: 2,
+  files: Object.fromEntries(Object.entries(remote).map(([key, body]) => [key, JSON.parse(body).version]))
+}
 
-/** Route manifest.json vs data files. `manifest: null` → 404; `dataOk: false` → data 404s. */
-function mockRemote(
-  opts: {
-    minAppVersion?: string
-    sourceAppVersion?: string
-    revision?: number
-    manifest?: string | null
-    dataVersion?: string
-    dataOk?: boolean
-    country?: string | null
-  } = {}
-) {
-  const {
-    minAppVersion = '1.0.0',
-    sourceAppVersion = '2.0.0',
-    revision = 2,
-    manifest,
-    dataVersion = 'v2',
-    dataOk = true,
-    country = 'US'
-  } = opts
-  const files = { 'models.json': dataVersion, 'providers.json': dataVersion, 'provider-models.json': dataVersion }
-  const manifestBody =
-    manifest === undefined
-      ? JSON.stringify({ minAppVersion, sourceAppVersion, revision, schemaVersion: REGISTRY_SCHEMA_VERSION, files })
-      : manifest
-  netFetchMock.mockImplementation(async (url: string) => {
-    if (url.startsWith('https://api.ipinfo.io/')) {
-      if (country === null) throw new Error('Region lookup unavailable')
-      return { ok: true, json: async () => ({ country_code: country }) }
-    }
-    if (url.endsWith('/manifest.json')) {
-      return manifestBody === null ? response('', false) : response(manifestBody)
-    }
-    return response(JSON.stringify({ version: dataVersion }), dataOk)
+function serve(extra: Record<string, unknown> = {}, data: Record<string, string> = remote) {
+  netFetch.mockImplementation(async (url: string, options: RequestInit) => {
+    options.signal?.throwIfAborted()
+    const name = url.split('/').pop()!
+    const body = name === 'manifest.json' ? JSON.stringify({ ...manifest, ...extra }) : data[name]
+    return { ok: body !== undefined, status: body === undefined ? 404 : 200, text: async () => body }
   })
 }
 
-describe('ProviderRegistryUpdaterService.check', () => {
+describe('preview, apply and undo model registry updates', () => {
+  let root: string
   let service: ProviderRegistryUpdaterService
-
   beforeEach(() => {
-    netFetchMock.mockReset()
-    getCatalogVersionMock.mockReset()
-    MockMainCacheServiceUtils.resetMocks()
-    notifyDataChangeMock.mockReset()
-    readActiveManifestMock.mockReset()
-    writeSnapshotMock.mockReset()
-    getCatalogVersionMock.mockReturnValue('v1') // current on-disk catalog is at v1
-    readActiveManifestMock.mockReturnValue(null)
+    BaseService.resetInstances()
+    root = mkdtempSync(join(tmpdir(), 'mai-registry-updater-'))
+    const bundle = join(root, 'feature.provider_registry.data')
+    mkdirSync(bundle)
+    mkdirSync(join(root, 'feature.provider_registry.override'))
+    for (const [name, body] of Object.entries(bundled)) writeFileSync(join(bundle, name), body)
+    writeFileSync(join(bundle, 'providers.json'), 'bundled routing sentinel')
+    vi.mocked(application.getPath).mockImplementation((key, filename) => join(root, key, filename ?? ''))
+    vi.mocked(providerRegistryService.getCatalogVersion).mockImplementation((name) => {
+      const paths = resolveRegistryPaths()
+      if (name === 'models.json') return JSON.parse(readFileSync(paths.models, 'utf-8')).version
+      if (name === 'provider-models.json') return JSON.parse(readFileSync(paths.providerModels, 'utf-8')).version
+      return 'bundled-routing'
+    })
+    country.mockReset().mockResolvedValue('US')
+    netFetch.mockReset()
+    serve()
     service = new ProviderRegistryUpdaterService()
   })
+  afterEach(() => {
+    vi.useRealTimers()
+    rmSync(root, { recursive: true, force: true })
+    vi.mocked(application.getPath).mockReset()
+  })
 
-  it('applies only remote-safe model metadata and notifies mounted DataApi projections', async () => {
-    mockRemote({ dataVersion: 'v2' })
-
-    await service.check()
-
-    expect(writeSnapshotMock).toHaveBeenCalledTimes(1)
-    const [appliedFiles, manifestBody] = writeSnapshotMock.mock.calls[0]
-    expect(Object.keys(appliedFiles).sort()).toEqual(['models.json', 'provider-models.json'])
-    const manifest = JSON.parse(manifestBody)
-    expect(manifest.minAppVersion).toBe('1.0.0')
-    expect(manifest.sourceAppVersion).toBe('2.0.0')
-    expect(manifest.revision).toBe(2)
-    expect(manifest.files['models.json']).toBe('v2')
-    expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/providers.json'), expect.anything())
-    expect(notifyDataChangeMock).toHaveBeenCalledWith(
+  it('makes an inspectable preview without writing, then preserves fork rows and routing when applied', async () => {
+    const preview = await service.preview()
+    expect(preview).toMatchObject({
+      sourceRevision: 2,
+      currentRevision: null,
+      changes: [
+        { id: 'new', kind: 'model', change: 'added' },
+        { id: 'other/new', kind: 'provider_model', change: 'added' }
+      ]
+    })
+    expect(readActiveOverrideSnapshot()).toBeNull()
+    await service.apply(preview!.id)
+    const active = readActiveOverrideSnapshot()!
+    expect(parseRegistryFile('models.json', active.files['models.json']).models).toEqual(
       expect.arrayContaining([
-        { endpoint: '/models', kind: 'projection' },
-        { endpoint: '/models/:uniqueModelId*' },
-        { endpoint: '/providers/:providerId/models:resolve', kind: 'membership' },
-        { endpoint: '/providers/:providerId/models/:modelId*/image-generation-support' }
+        { id: 'mai', name: 'Bundled MAI' },
+        { id: 'fork-only', name: 'Fork only' },
+        { id: 'new', name: 'New model' }
       ])
     )
+    expect(readFileSync(resolveRegistryPaths().providers, 'utf-8')).toBe('bundled routing sentinel')
+    expect(netFetch.mock.calls.some(([url]) => url.endsWith('/providers.json'))).toBe(false)
+    await service.apply(preview!.id)
+    expect(readActiveOverrideSnapshot()?.generation).toBe(active.generation)
   })
 
-  it('is a no-op when the remote version matches the current one', async () => {
-    mockRemote({ dataVersion: 'v1' })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
+  it('rolls back once and avoids immediately reapplying the undone source', async () => {
+    const preview = await service.preview()
+    await service.apply(preview!.id)
+    expect(service.canRollback).toBe(true)
+    await service.rollback()
+    expect(readActiveOverrideSnapshot()).toBeNull()
+    expect(service.canRollback).toBe(false)
+    expect(readRegistrySourceRevision()).toBe(2)
+    await expect(service.preview()).resolves.toBeNull()
   })
 
-  it('commits a newer manifest revision even when model content is unchanged', async () => {
-    getCatalogVersionMock.mockReturnValue('v2')
-    readActiveManifestMock.mockReturnValue({ revision: 1 })
-    mockRemote({ revision: 2, dataVersion: 'v2' })
+  it.each([{ minAppVersion: '9.0.0' }, { sourceAppVersion: '1.9.0' }, { schemaVersion: REGISTRY_SCHEMA_VERSION + 1 }])(
+    'rejects incompatible metadata before replacing any active file %j',
+    async (extra) => {
+      serve(extra)
+      await expect(service.preview()).rejects.toThrow('incompatible')
+      expect(readActiveOverrideSnapshot()).toBeNull()
+      expect(netFetch.mock.calls.every(([url]) => url.endsWith('/manifest.json'))).toBe(true)
+    }
+  )
 
-    await service.check()
-
-    expect(writeSnapshotMock).toHaveBeenCalledOnce()
+  it('rejects a file from another revision and a payload with a forged content digest', async () => {
+    serve({}, { ...remote, 'models.json': file({ models: [] }) })
+    await expect(service.preview()).rejects.toThrow('inconsistent')
+    const tampered = JSON.parse(remote['models.json'])
+    tampered.models[0].name = 'tampered'
+    serve({}, { ...remote, 'models.json': JSON.stringify(tampered) })
+    await expect(service.preview()).rejects.toThrow('hash mismatch')
+    expect(readActiveOverrideSnapshot()).toBeNull()
   })
 
-  it('does not apply when a download fails (non-ok data response)', async () => {
-    mockRemote({ dataOk: false })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
+  it('preserves the currently applied generation when the next download fails', async () => {
+    const preview = await service.preview()
+    await service.apply(preview!.id)
+    const active = readActiveOverrideSnapshot()
+    serve({ revision: 3 }, { 'models.json': remote['models.json'] })
+    await expect(service.preview()).rejects.toThrow('404')
+    expect(readActiveOverrideSnapshot()).toEqual(active)
   })
 
-  it('does not apply when a payload is invalid (keeps current data)', async () => {
-    const files = { 'models.json': 'v2', 'providers.json': 'v2', 'provider-models.json': 'v2' }
-    netFetchMock.mockImplementation(async (url: string) =>
-      url.endsWith('/manifest.json')
-        ? response(
-            JSON.stringify({
-              minAppVersion: '1.0.0',
-              sourceAppVersion: '2.0.0',
-              revision: 2,
-              schemaVersion: REGISTRY_SCHEMA_VERSION,
-              files
-            })
-          )
-        : response('<<not json>>')
-    )
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
+  it('refuses expired or superseded previews instead of writing an obsolete snapshot', async () => {
+    const first = await service.preview()
+    const second = await service.preview()
+    await expect(service.apply(first!.id)).rejects.toThrow('expired')
+    vi.spyOn(Date, 'now').mockReturnValue(second!.checkedAt + 10 * 60 * 1000)
+    await expect(service.apply(second!.id)).rejects.toThrow('expired')
+    vi.restoreAllMocks()
+    expect(readActiveOverrideSnapshot()).toBeNull()
   })
 
-  it('rejects a cross-commit mixture (a file version does not match the manifest digest)', async () => {
-    const files = { 'models.json': 'v2', 'providers.json': 'v2', 'provider-models.json': 'v2' }
-    netFetchMock.mockImplementation(async (url: string) => {
-      if (url.endsWith('/manifest.json'))
-        return response(
-          JSON.stringify({
-            minAppVersion: '1.0.0',
-            sourceAppVersion: '2.0.0',
-            revision: 2,
-            schemaVersion: REGISTRY_SCHEMA_VERSION,
-            files
-          })
-        )
-      // Branch advanced mid-fetch: models.json now belongs to a newer commit.
-      if (url.endsWith('/models.json')) return response(JSON.stringify({ version: 'v3' }))
-      return response(JSON.stringify({ version: 'v2' }))
-    })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
+  it('refuses a preview whose base catalog changed after it was reviewed', async () => {
+    const preview = await service.preview()
+    vi.mocked(providerRegistryService.getCatalogVersion).mockReturnValue('changed-base')
+    await expect(service.apply(preview!.id)).rejects.toThrow('stale')
+    expect(readActiveOverrideSnapshot()).toBeNull()
   })
 
-  it('rejects a snapshot older than the application bundle', async () => {
-    mockRemote({ sourceAppVersion: '0.9.0', dataVersion: 'v2' })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
-    expect(netFetchMock).toHaveBeenCalledWith(expect.stringContaining('/manifest.json'), expect.anything())
-    expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/models.json'), expect.anything())
+  it('honors cancellation, clears the rejected preview and allows a later fresh download', async () => {
+    const previous = await service.preview()
+    const controller = new AbortController()
+    controller.abort()
+    await expect(service.preview(controller.signal)).rejects.toThrow()
+    await expect(service.apply(previous!.id)).rejects.toThrow('expired')
+    serve()
+    await expect(service.preview()).resolves.toMatchObject({ sourceRevision: 2 })
   })
 
-  it('rejects data that requires a newer application', async () => {
-    mockRemote({ minAppVersion: '1.1.0', dataVersion: 'v2' })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
-    expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/models.json'), expect.anything())
-  })
-
-  it('rejects a manifest with no valid compatibility range', async () => {
-    const files = { 'models.json': 'v2', 'providers.json': 'v2', 'provider-models.json': 'v2' }
-    mockRemote({
-      manifest: JSON.stringify({
-        minAppVersion: 'not-a-version',
-        sourceAppVersion: '2.0.0',
-        revision: 2,
-        schemaVersion: REGISTRY_SCHEMA_VERSION,
-        files
-      }),
-      dataVersion: 'v2'
-    })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
-  })
-
-  it('rejects a manifest for a different registry schema version', async () => {
-    const files = { 'models.json': 'v2', 'providers.json': 'v2', 'provider-models.json': 'v2' }
-    mockRemote({
-      manifest: JSON.stringify({
-        minAppVersion: '1.0.0',
-        sourceAppVersion: '2.0.0',
-        revision: 2,
-        schemaVersion: REGISTRY_SCHEMA_VERSION + 1,
-        files
-      }),
-      dataVersion: 'v2'
-    })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
-    expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/models.json'), expect.anything())
-  })
-
-  it('rejects a snapshot revision that is not newer than the active override', async () => {
-    readActiveManifestMock.mockReturnValue({ revision: 3 })
-    mockRemote({ revision: 3, dataVersion: 'v2' })
-
-    await service.check()
-
-    expect(writeSnapshotMock).not.toHaveBeenCalled()
-    expect(netFetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/models.json'), expect.anything())
-  })
-
-  it.each(['US', 'CN', null])('diagnoses the updater mirror with a cold country cache (%s)', async (country) => {
-    mockRemote({ country })
-    const endpoints = await builtinEndpoints()
-    const url = endpoints.find((endpoint) => endpoint.id === 'registry')!.url
-    await service.check()
-    expect(netFetchMock).toHaveBeenCalledWith(url, expect.anything())
-    expect(url).toContain(country === 'US' ? 'raw.githubusercontent.com' : 'raw.gitcode.com')
-  })
-
-  it('uses the GitCode mirror inside China', async () => {
-    mockRemote({ dataVersion: 'v2', country: 'CN' })
-
-    await service.check()
-
-    expect(netFetchMock).toHaveBeenCalledWith(expect.stringContaining('raw.gitcode.com'), expect.anything())
-  })
-
-  it('uses the GitCode fallback when country detection fails without caching a guessed country', async () => {
-    mockRemote({ country: null })
-
-    await service.check()
-
-    expect(netFetchMock).toHaveBeenCalledWith(expect.stringContaining('raw.gitcode.com'), expect.anything())
-    expect(regionService.getCachedCountry()).toBeNull()
+  it('uses the schema-specific GitCode mirror in China', async () => {
+    country.mockResolvedValue('CN')
     await expect(resolveRegistryBaseUrl()).resolves.toBe(REGISTRY_URL_GITCODE)
-    expect(writeSnapshotMock).toHaveBeenCalledTimes(1)
-  })
-
-  it('fetches from the schema-version dir so old apps only receive compatible data', async () => {
-    mockRemote({ dataVersion: 'v2' })
-
-    await service.check()
-
-    expect(netFetchMock).toHaveBeenCalledWith(
-      expect.stringContaining(`/v${REGISTRY_SCHEMA_VERSION}/models.json`),
-      expect.anything()
-    )
+    await service.preview()
+    expect(netFetch.mock.calls.every(([url]) => url.startsWith(REGISTRY_URL_GITCODE))).toBe(true)
+    expect(REGISTRY_URL_GITHUB).toContain(`/v${REGISTRY_SCHEMA_VERSION}`)
   })
 })

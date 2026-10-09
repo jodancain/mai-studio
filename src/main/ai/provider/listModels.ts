@@ -70,9 +70,14 @@ const logger = loggerService.withContext('ModelListService')
 
 // ── Types ──
 
+type ModelListOptions = {
+  throwOnError?: boolean
+  fullCatalog?: boolean
+  onComplete?: () => void
+}
 type ModelFetcher = {
   match: (provider: Provider) => boolean
-  fetch: (provider: Provider, signal?: AbortSignal, options?: { throwOnError?: boolean }) => Promise<Partial<Model>[]>
+  fetch: (provider: Provider, signal?: AbortSignal, options?: ModelListOptions) => Promise<Partial<Model>[]>
 }
 
 function getErrorType(error: unknown) {
@@ -177,8 +182,8 @@ function toModel(apiModelId: string, provider: Provider, extra?: Partial<Model>)
 function dedup<T>(items: T[], getId: (item: T) => string | undefined): T[] {
   const seen = new Set<string>()
   return items.filter((item) => {
-    const id = getId(item)?.trim()
-    if (!id || seen.has(id)) return false
+    const id = getId(item)
+    if (!id?.trim() || seen.has(id)) return false
     seen.add(id)
     return true
   })
@@ -279,25 +284,40 @@ function isSupportedGeminiModel(model: z.infer<typeof GeminiModelsResponseSchema
 
 const geminiFetcher: ModelFetcher = {
   match: (p) => isGeminiProvider(p),
-  fetch: async (provider, signal) => {
+  fetch: async (provider, signal, options) => {
     let baseUrl = withoutTrailingSlash(getBaseUrl(provider))
     baseUrl = baseUrl.replace(/\/v1(beta)?$/, '')
     const apiKey = providerService.getRotatedApiKey(provider.id)
     // Pass the key via the `x-goog-api-key` header (same as `@ai-sdk/google`'s chat path)
     // instead of the `?key=` query param: on failure `APICallError.url` is logged, which
     // would persist the key into local logs users attach to bug reports.
-    const response = await getFromApi({
-      url: `${baseUrl}/v1beta/models`,
-      headers: mergeHeaders(
-        getProviderAppHeaders(provider),
-        { 'x-goog-api-key': apiKey },
-        provider.settings?.extraHeaders
-      ),
-      responseSchema: GeminiModelsResponseSchema,
-      abortSignal: signal
-    })
-    return dedup(response.models, (m) => m.name)
-      .filter(isSupportedGeminiModel)
+    const headers = mergeHeaders(
+      getProviderAppHeaders(provider),
+      { 'x-goog-api-key': apiKey },
+      provider.settings?.extraHeaders
+    )
+    const models: z.infer<typeof GeminiModelsResponseSchema>['models'] = []
+    const seenTokens = new Set<string>()
+    let pageToken: string | undefined
+    for (let page = 0; page < 100; page++) {
+      const query = pageToken ? `?pageToken=${encodeURIComponent(pageToken)}` : ''
+      const response = await getFromApi({
+        url: `${baseUrl}/v1beta/models${query}`,
+        headers,
+        responseSchema: GeminiModelsResponseSchema,
+        abortSignal: signal
+      })
+      models.push(...response.models)
+      pageToken = response.nextPageToken
+      if (!pageToken) {
+        options?.onComplete?.()
+        break
+      }
+      if (seenTokens.has(pageToken)) break
+      seenTokens.add(pageToken)
+    }
+    return dedup(models, (m) => m.name)
+      .filter((model) => options?.fullCatalog || isSupportedGeminiModel(model))
       .map((m) => {
         const id = m.name.startsWith('models/') ? m.name.slice(7) : m.name
         return toModel(id, provider, { name: m.displayName || id, description: m.description })
@@ -747,26 +767,42 @@ function isSupportedOpenAIModel(modelId: string): boolean {
 
 // Anthropic authenticates model listing with `x-api-key` + `anthropic-version`, not
 // `Authorization: Bearer` — the generic OpenAI fetcher's Bearer header would 401. `/v1/models`
-// only returns chat models (no audio/tts), and `limit` maxes at 1000, well above the catalog
-// size, so a single page covers it.
+// uses cursor pagination; only an explicit last page proves the list is complete.
 const ANTHROPIC_VERSION = '2023-06-01'
 
 const anthropicFetcher: ModelFetcher = {
   match: (p) => matchesPreset(p, SystemProviderIds.anthropic),
-  fetch: async (provider, signal) => {
+  fetch: async (provider, signal, options) => {
     const baseUrl = formatApiHost(getBaseUrl(provider))
     const apiKey = providerService.getRotatedApiKey(provider.id)
-    const response = await getFromApi({
-      url: `${baseUrl}/models?limit=1000`,
-      headers: mergeHeaders(
-        getProviderAppHeaders(provider),
-        { 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
-        provider.settings?.extraHeaders
-      ),
-      responseSchema: AnthropicModelsResponseSchema,
-      abortSignal: signal
-    })
-    return dedup(response.data, (m) => m.id).map((m) =>
+    const headers = mergeHeaders(
+      getProviderAppHeaders(provider),
+      { 'x-api-key': apiKey, 'anthropic-version': ANTHROPIC_VERSION },
+      provider.settings?.extraHeaders
+    )
+    const models: z.infer<typeof AnthropicModelsResponseSchema>['data'] = []
+    const cursors = new Set<string>()
+    let cursor: string | undefined
+    for (let page = 0; page < 100; page++) {
+      const query = new URLSearchParams({ limit: '1000' })
+      if (cursor) query.set('after_id', cursor)
+      const response = await getFromApi({
+        url: `${baseUrl}/models?${query}`,
+        headers,
+        responseSchema: AnthropicModelsResponseSchema,
+        abortSignal: signal
+      })
+      models.push(...response.data)
+      if (response.has_more === false) {
+        options?.onComplete?.()
+        break
+      }
+      if (response.has_more !== true) break
+      cursor = response.last_id ?? response.data.at(-1)?.id
+      if (!cursor || cursors.has(cursor)) break
+      cursors.add(cursor)
+    }
+    return dedup(models, (m) => m.id).map((m) =>
       toModel(m.id, provider, { name: m.display_name || m.id, ownedBy: 'anthropic' })
     )
   }
@@ -792,7 +828,7 @@ const jinaFetcher: ModelFetcher = {
 
 const openAIFetcher: ModelFetcher = {
   match: (p) => matchesPreset(p, SystemProviderIds.openai),
-  fetch: async (provider, signal) => {
+  fetch: async (provider, signal, options) => {
     const baseUrl = formatApiHost(getBaseUrl(provider))
     const response = await getFromApi({
       url: `${baseUrl}/models`,
@@ -801,8 +837,9 @@ const openAIFetcher: ModelFetcher = {
       abortSignal: signal
     })
     warnSkippedOpenAIModelEntries(provider.id, response)
+    if (response.skippedModelCount === 0 && !response.has_more && !response.nextPageToken) options?.onComplete?.()
     return dedup(response.data, (m) => m.id)
-      .filter((m) => isSupportedOpenAIModel(m.id))
+      .filter((m) => options?.fullCatalog || isSupportedOpenAIModel(m.id))
       .map((m) => toModel(m.id, provider, { ownedBy: m.owned_by }))
   }
 }
@@ -1020,7 +1057,7 @@ const fetchers: ModelFetcher[] = [
 export async function listModels(
   provider: Provider,
   abortSignal?: AbortSignal,
-  options?: { throwOnError?: boolean }
+  options?: ModelListOptions
 ): Promise<Partial<Model>[]> {
   try {
     const fetcher = fetchers.find((f) => f.match(provider))!
@@ -1032,4 +1069,16 @@ export async function listModels(
     }
     return []
   }
+}
+
+export async function listModelsDetailed(provider: Provider, signal?: AbortSignal) {
+  let complete = false
+  const models = await listModels(provider, signal, {
+    throwOnError: true,
+    fullCatalog: true,
+    onComplete: () => {
+      complete = true
+    }
+  })
+  return { models, completeness: complete ? ('complete' as const) : ('partial' as const) }
 }

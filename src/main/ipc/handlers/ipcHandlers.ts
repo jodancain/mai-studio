@@ -25,6 +25,8 @@ import { knowledgeHandlers } from './knowledge'
 import { localModelHandlers } from './localModel'
 import { mcpHandlers } from './mcp'
 import { miniAppHandlers } from './miniApp'
+import { modelApiCatalogHandlers } from './modelApiCatalog'
+import { modelApiDiagnosticsHandlers } from './modelApiDiagnostics'
 import { navigationHandlers } from './navigation'
 import { notificationHandlers } from './notification'
 import { oauthHandlers } from './oauth'
@@ -79,6 +81,8 @@ export const ipcHandlers: IpcHandlersFor<IpcRequestSchemas> = {
   ...localModelHandlers,
   ...mcpHandlers,
   ...miniAppHandlers,
+  ...modelApiCatalogHandlers,
+  ...modelApiDiagnosticsHandlers,
   ...navigationHandlers,
   ...notificationHandlers,
   ...oauthHandlers,

@@ -27,9 +27,9 @@ function modelTarget(ctx: DoctorContext) {
   })
 }
 
-function requestFailure<Id extends 'provider-model-list' | 'provider-model-conversation'>(
-  error: unknown
-): DoctorProbeOutcome<Id> {
+function requestFailure<
+  Id extends 'provider-model-list' | 'provider-model-conversation' | 'provider-model-streaming' | 'provider-model-tools'
+>(error: unknown): DoctorProbeOutcome<Id> {
   const serialized = serializeError(error)
   const status = typeof serialized.statusCode === 'number' ? serialized.statusCode : undefined
   const category = isErrorCategory(serialized.providerErrorCategory)
@@ -121,6 +121,60 @@ export const modelConversation = defineDoctorCheck({
     } catch (error) {
       ctx.signal.throwIfAborted()
       return requestFailure<'provider-model-conversation'>(error)
+    }
+  },
+  fixes: {}
+})
+
+export const modelStreaming = defineDoctorCheck({
+  id: 'provider-model-streaming',
+  async getConfirmation(ctx) {
+    const target = await modelTarget(ctx)
+    if (target.isExternalCli) return { status: 'skip', detail: { variant: 'external_cli' } }
+    if (!target.supportsChat) return { status: 'skip', detail: { variant: 'not_chat_model' } }
+    return {
+      confirmation: {
+        messageKey: 'settings.doctor.checks.provider-model-streaming.confirmation',
+        params: { model: target.modelName, modelId: target.modelId, endpoint: redactUrlParams(target.baseUrl) }
+      },
+      isCurrent: target.isCurrent
+    }
+  },
+  async run(ctx) {
+    const target = await modelTarget(ctx)
+    try {
+      await target.checkStreaming(ctx.signal)
+      return { status: 'pass' }
+    } catch (error) {
+      ctx.signal.throwIfAborted()
+      return requestFailure<'provider-model-streaming'>(error)
+    }
+  },
+  fixes: {}
+})
+
+export const modelTools = defineDoctorCheck({
+  id: 'provider-model-tools',
+  async getConfirmation(ctx) {
+    const target = await modelTarget(ctx)
+    if (target.isExternalCli) return { status: 'skip', detail: { variant: 'external_cli' } }
+    if (!target.supportsChat) return { status: 'skip', detail: { variant: 'not_chat_model' } }
+    return {
+      confirmation: {
+        messageKey: 'settings.doctor.checks.provider-model-tools.confirmation',
+        params: { model: target.modelName, modelId: target.modelId, endpoint: redactUrlParams(target.baseUrl) }
+      },
+      isCurrent: target.isCurrent
+    }
+  },
+  async run(ctx) {
+    const target = await modelTarget(ctx)
+    try {
+      await target.checkTools(ctx.signal)
+      return { status: 'pass' }
+    } catch (error) {
+      ctx.signal.throwIfAborted()
+      return requestFailure<'provider-model-tools'>(error)
     }
   },
   fixes: {}

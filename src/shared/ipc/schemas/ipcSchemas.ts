@@ -23,6 +23,8 @@ import { knowledgeRequestSchemas } from './knowledge'
 import { localModelRequestSchemas } from './localModel'
 import { type McpEventSchemas, mcpRequestSchemas } from './mcp'
 import { type MiniAppEventSchemas, miniAppRequestSchemas } from './miniApp'
+import { modelApiCatalogRequestSchemas } from './modelApiCatalog'
+import { modelApiDiagnosticsRequestSchemas } from './modelApiDiagnostics'
 import { type NavigationEventSchemas, navigationRequestSchemas } from './navigation'
 import { type NotificationEventSchemas, notificationRequestSchemas } from './notification'
 import { oauthRequestSchemas } from './oauth'
@@ -75,6 +77,8 @@ export const ipcRequestSchemas = {
   ...localModelRequestSchemas,
   ...mcpRequestSchemas,
   ...miniAppRequestSchemas,
+  ...modelApiCatalogRequestSchemas,
+  ...modelApiDiagnosticsRequestSchemas,
   ...navigationRequestSchemas,
   ...notificationRequestSchemas,
   ...oauthRequestSchemas,

@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+
 import { app, net } from 'electron'
 
+import { application } from '@application'
 import {
-  type CatalogManifest,
   CatalogManifestSchema,
   isCatalogManifestCompatible,
-  ModelListSchema,
-  ProviderModelListSchema,
   REGISTRY_SCHEMA_VERSION,
   REMOTE_REGISTRY_FILES,
   type RemoteRegistryFileName
@@ -13,43 +14,32 @@ import {
 import { loggerService } from '@logger'
 import { BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 import { notifyDataApiDataChange } from '@main/data/dataApiDataChange'
+import {
+  composeForkProviderRegistrySnapshot,
+  parseRegistryFile,
+  type RegistrySnapshot,
+  type RegistrySnapshotFiles
+} from '@main/data/services/providerRegistryComposition'
 import { providerRegistryService } from '@main/data/services/ProviderRegistryService'
-import { readActiveOverrideManifest } from '@main/data/services/utils/registryDataPaths'
-import { writeProviderRegistrySnapshot } from '@main/services/providerRegistrySnapshot'
+import { readActiveOverrideSnapshot, readRegistrySourceRevision } from '@main/data/services/utils/registryDataPaths'
+import {
+  hasPreviousProviderRegistrySnapshot,
+  rollbackProviderRegistrySnapshot,
+  writeProviderRegistrySnapshot
+} from '@main/services/providerRegistrySnapshot'
 import { regionService } from '@main/services/RegionService'
 import { generateUserAgent } from '@main/utils/systemInfo'
 import type { DataApiDataChangeEffect } from '@shared/data/api/types'
+import type { ModelApiRegistryPreview } from '@shared/types/modelApiCatalog'
 import { UPSTREAM_SERVICES_ENABLED } from '@shared/utils/constants'
 
 const logger = loggerService.withContext('ProviderRegistryUpdaterService')
-
-// Remote source of the regenerated catalog. Pinned to a stable branch (not a
-// moving `main`), under a schema-version dir so a structurally-breaking schema
-// change can't reach older clients: an app only ever fetches the `v{N}` its
-// bundled schema understands. Zod validation on download is the second line of
-// defence, fallback-to-bundled the third. The `x-files/*` branch matches
-// x-files/app-upgrade-config so the same GitCode repo mirror serves CN clients.
 const REMOTE_BRANCH = 'x-files/provider-registry'
 const REMOTE_SUBPATH = `v${REGISTRY_SCHEMA_VERSION}`
 export const REGISTRY_URL_GITHUB = `https://raw.githubusercontent.com/CherryHQ/cherry-studio/refs/heads/${REMOTE_BRANCH}/${REMOTE_SUBPATH}`
 export const REGISTRY_URL_GITCODE = `https://raw.gitcode.com/CherryHQ/cherry-studio/raw/${encodeURIComponent(REMOTE_BRANCH)}/${REMOTE_SUBPATH}`
-
-/**
- * The mirror an update cycle fetches from; the network doctor probes the same one.
- * Unknown egress keeps the updater's historical GitCode fallback.
- */
 export const resolveRegistryBaseUrl = async (): Promise<string> =>
   (await regionService.getCountry()).toLowerCase() === 'cn' ? REGISTRY_URL_GITCODE : REGISTRY_URL_GITHUB
-
-const MANIFEST_FILE = 'manifest.json'
-
-// Validators keyed by file — the SAME schemas RegistryLoader validates with on
-// read, so an accepted download is guaranteed loadable. Typed structurally
-// (only `version` is read here) to sidestep the schemas' distinct outputs.
-const SCHEMA_BY_FILE: Record<RemoteRegistryFileName, { parse: (data: unknown) => { version: string } }> = {
-  'models.json': ModelListSchema,
-  'provider-models.json': ProviderModelListSchema
-}
 
 const REGISTRY_DATA_CHANGE_EFFECTS = [
   { endpoint: '/models', kind: 'projection' },
@@ -60,146 +50,152 @@ const REGISTRY_DATA_CHANGE_EFFECTS = [
 ] satisfies DataApiDataChangeEffect[]
 
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
-// Short delay before the first check, letting boot I/O settle. registerInterval
-// only fires after one full interval, so the initial pull is scheduled separately.
-const INITIAL_CHECK_DELAY_MS = 30_000
+const PREVIEW_TTL_MS = 10 * 60 * 1000
 
-interface StagedFile {
-  file: RemoteRegistryFileName
-  body: string
-  version: string
+type PendingPreview = {
+  preview: ModelApiRegistryPreview
+  snapshot: RegistrySnapshot
+  versions: Record<RemoteRegistryFileName, string | null>
+  sourceRevision: number
 }
 
-/**
- * Downloads remote-safe model metadata from the pinned branch. Provider routing
- * remains bundled because unsigned data must never control credential destinations.
- *
- * Existing model projections hot-reload in mounted renderers. Brand-new catalog
- * models enter SQLite only through the existing explicit provider-model sync;
- * this background service never writes business rows.
- */
 @Injectable('ProviderRegistryUpdaterService')
 @ServicePhase(Phase.WhenReady)
 export class ProviderRegistryUpdaterService extends BaseService {
+  private pending: PendingPreview | null = null
+  private download: AbortController | null = null
+  private writing = false
+  private lastAppliedId: string | null = null
+
   protected onReady(): void {
-    // Dev/test never auto-download — an override under userData would silently
-    // shadow the source catalog a developer just regenerated. `check()` is still
-    // callable directly for manual/test runs.
-    //
-    // This fork never auto-downloads either: a remote snapshot replaces
-    // provider-models.json wholesale, and the fork-only `mai` rows exist only in the
-    // bundled copy — applying one would silently empty that provider.
+    this.registerDisposable(() => {
+      this.download?.abort()
+      this.pending = null
+    })
+    // Fork-wide upstream services remain opt-out; catalog commands are explicit.
     if (!app.isPackaged || !UPSTREAM_SERVICES_ENABLED) return
-
     this.registerInterval(() => this.check(), CHECK_INTERVAL_MS)
-
-    const initial = setTimeout(() => void this.check(), INITIAL_CHECK_DELAY_MS)
+    const initial = setTimeout(() => void this.check(), 30_000)
     initial.unref()
     this.registerDisposable(() => clearTimeout(initial))
   }
 
-  /** Run one update cycle: fetch → compatibility+revision validate → apply → notify. Never throws. */
+  get canRollback(): boolean {
+    return hasPreviousProviderRegistrySnapshot()
+  }
+
   public async check(): Promise<void> {
     try {
-      const result = await this.fetchAndValidate()
-      if (!result) return
-      const { staged, manifest, manifestBody } = result
-      const currentManifest = readActiveOverrideManifest()
-      if (!this.hasChanges(staged) && (!currentManifest || currentManifest.revision === manifest.revision)) {
-        logger.debug('registry update: catalog already current')
-        return
-      }
-      const files = Object.fromEntries(staged.map((s) => [s.file, s.body])) as Record<RemoteRegistryFileName, string>
-      await writeProviderRegistrySnapshot(files, manifestBody)
-      notifyDataApiDataChange(REGISTRY_DATA_CHANGE_EFFECTS)
-      logger.info(`registry update: applied ${staged.map((s) => `${s.file}@${s.version}`).join(', ')}`)
+      const preview = await this.preview()
+      if (preview) await this.apply(preview.id)
     } catch (error) {
-      logger.warn('registry update: cycle failed', error as Error)
+      logger.warn('registry update cycle failed', error as Error)
     }
   }
 
-  /**
-   * Fetch and validate the manifest + remote-safe files. Returns `null` when
-   * compatibility, monotonic revision, download, or validation checks fail.
-   */
-  private async fetchAndValidate(): Promise<{
-    staged: StagedFile[]
-    manifest: CatalogManifest
-    manifestBody: string
-  } | null> {
-    const baseUrl = await resolveRegistryBaseUrl()
-    const headers = {
-      'User-Agent': generateUserAgent(),
-      'Cache-Control': 'no-cache',
-      Accept: 'application/json'
-    }
-    const fetchText = async (name: string): Promise<string | null> => {
-      try {
-        const response = await net.fetch(`${baseUrl}/${name}`, { headers })
-        if (!response.ok) throw new Error(`HTTP ${response.status}`)
-        return await response.text()
-      } catch (error) {
-        logger.warn(`registry update: fetch failed for ${name}, skipping cycle`, error as Error)
-        return null
-      }
-    }
-
-    const manifestBody = await fetchText(MANIFEST_FILE)
-    if (manifestBody === null) return null
-    const manifest = this.parseManifest(manifestBody)
-    if (!manifest) return null
-    if (!isCatalogManifestCompatible(manifest, app.getVersion())) {
-      logger.warn('registry update: manifest is not compatible with this application version, skipping')
-      return null
-    }
-    const activeManifest = readActiveOverrideManifest()
-    if (activeManifest && manifest.revision <= activeManifest.revision) {
-      logger.debug(
-        `registry update: remote revision ${manifest.revision} is not newer than active revision ${activeManifest.revision}, skipping`
-      )
-      return null
-    }
-
-    const staged: StagedFile[] = []
-    for (const file of REMOTE_REGISTRY_FILES) {
-      const body = await fetchText(file)
-      if (body === null) return null
-      let version: string
-      try {
-        version = this.parseVersion(file, body)
-      } catch (error) {
-        logger.warn(`registry update: ${file} failed validation, keeping current data`, error as Error)
-        return null
-      }
-      // Bind the set to ONE published snapshot: the manifest records each file's
-      // content-hash version. A mismatch means the movable `registry-data` branch
-      // advanced mid-fetch and we pulled a cross-commit mixture — abort the cycle.
-      if (version !== manifest.files[file]) {
-        logger.warn(
-          `registry update: ${file} digest mismatch (manifest ${manifest.files[file]} vs fetched ${version}) — cross-commit fetch, skipping`
-        )
-        return null
-      }
-      staged.push({ file, body, version })
-    }
-    return { staged, manifest, manifestBody }
-  }
-
-  private parseManifest(manifestBody: string): CatalogManifest | null {
+  public async preview(signal?: AbortSignal): Promise<ModelApiRegistryPreview | null> {
+    if (this.download || this.writing) throw new Error('Registry update busy')
+    const controller = new AbortController()
+    this.download = controller
+    this.pending = null
     try {
-      return CatalogManifestSchema.parse(JSON.parse(manifestBody))
-    } catch {
-      logger.warn('registry update: manifest malformed, skipping')
-      return null
+      const requestSignal = AbortSignal.any([
+        controller.signal,
+        AbortSignal.timeout(15_000),
+        ...(signal ? [signal] : [])
+      ])
+      const current = readActiveOverrideSnapshot()
+      const versions = this.currentVersions()
+      const sourceRevision = readRegistrySourceRevision()
+      const baseUrl = await resolveRegistryBaseUrl()
+      const headers = { 'User-Agent': generateUserAgent(), 'Cache-Control': 'no-cache', Accept: 'application/json' }
+      const fetchText = async (name: string): Promise<string> => {
+        const response = await net.fetch(`${baseUrl}/${name}`, { headers, signal: requestSignal })
+        if (!response.ok) throw new Error(`Registry request failed (${response.status})`)
+        const body = await response.text()
+        if (body.length > 16 * 1024 * 1024) throw new Error('Registry file is too large')
+        return body
+      }
+      const manifest = CatalogManifestSchema.parse(JSON.parse(await fetchText('manifest.json')))
+      if (!isCatalogManifestCompatible(manifest, app.getVersion()))
+        throw new Error('Registry is incompatible with this application')
+      if (manifest.revision <= sourceRevision) {
+        this.pending = null
+        return null
+      }
+      const remote = {} as RegistrySnapshotFiles
+      for (const file of REMOTE_REGISTRY_FILES) {
+        const body = await fetchText(file)
+        if (parseRegistryFile(file, body).version !== manifest.files[file])
+          throw new Error('Registry revision is inconsistent')
+        remote[file] = body
+      }
+      requestSignal.throwIfAborted()
+      const bundled = Object.fromEntries(
+        REMOTE_REGISTRY_FILES.map((file) => [
+          file,
+          readFileSync(application.getPath('feature.provider_registry.data', file), 'utf-8')
+        ])
+      ) as RegistrySnapshotFiles
+      const merged = composeForkProviderRegistrySnapshot(bundled, current?.files ?? bundled, remote, manifest)
+      const preview: ModelApiRegistryPreview = {
+        id: randomUUID(),
+        sourceRevision: manifest.revision,
+        currentRevision: current?.manifest.revision ?? null,
+        checkedAt: Date.now(),
+        changes: merged.changes,
+        preservedCount: merged.preservedCount
+      }
+      this.pending = { preview, snapshot: merged.snapshot, versions, sourceRevision }
+      return structuredClone(preview)
+    } finally {
+      if (this.download === controller) this.download = null
     }
   }
 
-  /** True if any downloaded file's version differs from what the data layer currently reports. */
-  private hasChanges(staged: StagedFile[]): boolean {
-    return staged.some(({ file, version }) => version !== providerRegistryService.getCatalogVersion(file))
+  public async apply(previewId: string): Promise<void> {
+    if (this.writing || this.download) throw new Error('Registry update busy')
+    if (this.lastAppliedId === previewId && !this.pending) return
+    const pending = this.pending
+    if (!pending || pending.preview.id !== previewId || Date.now() - pending.preview.checkedAt >= PREVIEW_TTL_MS) {
+      throw new Error('Registry preview expired')
+    }
+    const versions = this.currentVersions()
+    if (
+      REMOTE_REGISTRY_FILES.some((file) => versions[file] !== pending.versions[file]) ||
+      readRegistrySourceRevision() !== pending.sourceRevision
+    ) {
+      this.pending = null
+      throw new Error('Registry preview is stale')
+    }
+    this.writing = true
+    try {
+      await writeProviderRegistrySnapshot(pending.snapshot.files, pending.snapshot.manifestBody)
+      this.lastAppliedId = previewId
+      this.pending = null
+      notifyDataApiDataChange(REGISTRY_DATA_CHANGE_EFFECTS)
+    } finally {
+      this.writing = false
+    }
   }
 
-  private parseVersion(file: RemoteRegistryFileName, jsonText: string): string {
-    return SCHEMA_BY_FILE[file].parse(JSON.parse(jsonText)).version
+  public async rollback(): Promise<void> {
+    if (this.writing || this.download) throw new Error('Registry update busy')
+    this.writing = true
+    try {
+      await rollbackProviderRegistrySnapshot()
+      this.pending = null
+      this.lastAppliedId = null
+      notifyDataApiDataChange(REGISTRY_DATA_CHANGE_EFFECTS)
+    } finally {
+      this.writing = false
+    }
+  }
+
+  private currentVersions(): Record<RemoteRegistryFileName, string | null> {
+    return {
+      'models.json': providerRegistryService.getCatalogVersion('models.json'),
+      'provider-models.json': providerRegistryService.getCatalogVersion('provider-models.json')
+    }
   }
 }

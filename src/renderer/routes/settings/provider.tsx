@@ -12,7 +12,8 @@ export const providerSettingsSearchSchema = z.object({
     .transform((value) => (typeof value === 'string' ? value : JSON.stringify(value)))
     .optional(),
   filter: z.string().optional(),
-  id: z.string().optional()
+  id: z.string().optional(),
+  focusId: z.string().optional()
 })
 
 export const Route = createFileRoute('/settings/provider')({

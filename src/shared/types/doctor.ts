@@ -95,6 +95,8 @@ export const DOCTOR_CHECK_IDS = [
   'network-model-endpoint',
   'provider-model-list',
   'provider-model-conversation',
+  'provider-model-streaming',
+  'provider-model-tools',
   'network-online',
   'network-dns-resolution',
   'network-tls-handshake',
@@ -267,6 +269,26 @@ export const DOCTOR_CHECK_CATALOG = {
     requires: []
   },
   'provider-model-conversation': {
+    scope: ['providerId', 'modelId'],
+    domain: 'provider',
+    tier: 'live',
+    execution: 'confirmation',
+    includeByDefault: false,
+    fixes: [],
+    details: ['external_cli', 'not_chat_model', 'request_failed'],
+    requires: []
+  },
+  'provider-model-streaming': {
+    scope: ['providerId', 'modelId'],
+    domain: 'provider',
+    tier: 'live',
+    execution: 'confirmation',
+    includeByDefault: false,
+    fixes: [],
+    details: ['external_cli', 'not_chat_model', 'request_failed'],
+    requires: []
+  },
+  'provider-model-tools': {
     scope: ['providerId', 'modelId'],
     domain: 'provider',
     tier: 'live',

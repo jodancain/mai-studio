@@ -182,6 +182,13 @@
       "when": 1790251694655,
       "tag": "0025_curvy_black_tom",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1791535764271,
+      "tag": "0026_slim_hitman",
+      "breakpoints": true
     }
   ],
   "version": "7"

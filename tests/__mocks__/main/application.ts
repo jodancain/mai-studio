@@ -1,5 +1,7 @@
 import { vi } from 'vitest'
 
+import type { InputFor, OutputFor } from '@shared/ipc/types'
+
 import { MockMainCacheServiceExport } from './CacheService'
 import { MockMainDataApiServiceExport } from './DataApiService'
 import { MockMainDbServiceExport } from './DbService'
@@ -80,6 +82,15 @@ export const mockJobManager = {
   enqueue: vi.fn(() => ({ id: 'mock-job-id', snapshot: {}, finished: Promise.resolve({}) }))
 }
 
+const mockModelApiDiagnosticsService = {
+  start: vi.fn<(input: InputFor<'model_api.diagnostics.start'>) => OutputFor<'model_api.diagnostics.start'>>(),
+  read: vi.fn<() => OutputFor<'model_api.diagnostics.read'>>(),
+  confirm:
+    vi.fn<(input: InputFor<'model_api.diagnostics.confirm'>) => Promise<OutputFor<'model_api.diagnostics.confirm'>>>(),
+  cancel: vi.fn<(input: InputFor<'model_api.diagnostics.cancel'>) => OutputFor<'model_api.diagnostics.cancel'>>(),
+  export: vi.fn<(input: InputFor<'model_api.diagnostics.export'>) => OutputFor<'model_api.diagnostics.export'>>()
+}
+
 /** Default service instances from existing mock files */
 export const defaultServiceInstances = {
   PreferenceService: MockMainPreferenceServiceExport.preferenceService,
@@ -90,7 +101,8 @@ export const defaultServiceInstances = {
   MainWindowService: mockMainWindowService,
   WindowManager: mockWindowManager,
   IpcApiService: mockIpcApiService,
-  JobManager: mockJobManager
+  JobManager: mockJobManager,
+  ModelApiDiagnosticsService: mockModelApiDiagnosticsService
 } as const
 
 /** Type for per-service overrides */

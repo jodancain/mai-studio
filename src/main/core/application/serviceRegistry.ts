@@ -53,6 +53,8 @@ import { LogRetentionService } from '@main/services/LogRetentionService'
 import { MainNetworkDevtoolsService } from '@main/services/mainNetworkDevtools'
 import { MainWindowService } from '@main/services/MainWindowService'
 import { MediaProtocolService } from '@main/services/mediaProtocol'
+import { ModelApiCatalogService } from '@main/services/ModelApiCatalogService'
+import { ModelApiDiagnosticsService } from '@main/services/ModelApiDiagnosticsService'
 import { NetworkService } from '@main/services/network'
 import { NotificationService } from '@main/services/NotificationService'
 import { OAuthRuntimeService } from '@main/services/oauth/runtime/OAuthRuntimeService'
@@ -140,6 +142,8 @@ export const services = {
   NetworkService,
   StorageMonitorService,
   DoctorService,
+  ModelApiCatalogService,
+  ModelApiDiagnosticsService,
   LogRetentionService,
   PythonService,
   TrayService,

@@ -47,6 +47,9 @@ export const userModelTable = sqliteTable(
     /** Associated preset model ID (for traceability) */
     presetModelId: text(),
 
+    /** API-discovered rows require exact registry identity rather than legacy fuzzy enrichment. */
+    discoverySource: text({ enum: ['provider-api'] }),
+
     /** Display name (custom value or preset override; null inherits the preset) */
     name: text(),
 
@@ -113,7 +116,7 @@ export const userModelTable = sqliteTable(
   (t) => [
     check(
       'user_model_custom_config_check',
-      sql`${t.presetModelId} IS NOT NULL OR (${t.name} IS NOT NULL AND ${t.capabilities} IS NOT NULL AND ${t.supportsStreaming} IS NOT NULL)`
+      sql`(${t.discoverySource} IS NOT NULL AND ${t.discoverySource} = 'provider-api') OR ${t.presetModelId} IS NOT NULL OR (${t.name} IS NOT NULL AND ${t.capabilities} IS NOT NULL AND ${t.supportsStreaming} IS NOT NULL)`
     ),
     unique('user_model_provider_model_unique').on(t.providerId, t.modelId),
     index('user_model_preset_idx').on(t.presetModelId),

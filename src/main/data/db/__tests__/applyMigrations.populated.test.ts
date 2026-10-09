@@ -70,6 +70,54 @@ describe('applyMigrations over a populated database', () => {
     rmSync(tempDir, { recursive: true, force: true })
   })
 
+  it('adds discovery provenance without changing legacy model overrides, defaults, or pins', () => {
+    applyMigrations(db, baselineMigrationsFolder(join(tempDir, 'baseline'), '0026_slim_hitman'))
+    sqlite
+      .prepare(`INSERT INTO user_provider (provider_id, name, order_key, created_at, updated_at)
+        VALUES ('custom', 'Custom', 'a0', 100, 200)`)
+      .run()
+    sqlite
+      .prepare(`INSERT INTO user_model
+        (id, provider_id, model_id, name, capabilities, input_modalities, input_modalities_explicit,
+         context_window, supports_streaming, pricing, is_enabled, is_hidden, is_deprecated, order_key,
+         notes, created_at, updated_at)
+        VALUES ('custom::existing', 'custom', 'existing', 'User name', '["function-call"]', '["image"]', 1,
+          1234, 1, '{"input":2}', 0, 1, 1, 'a0', 'Keep note', 100, 200)`)
+      .run()
+    sqlite
+      .prepare(`INSERT INTO user_model
+        (id, provider_id, model_id, preset_model_id, order_key, created_at, updated_at)
+        VALUES ('custom::preset', 'custom', 'preset', 'preset', 'a1', 101, 201)`)
+      .run()
+    sqlite
+      .prepare(`INSERT INTO pin (id, entity_type, entity_id, order_key, created_at, updated_at)
+        VALUES ('pin', 'model', 'custom::existing', 'a0', 100, 200)`)
+      .run()
+    sqlite
+      .prepare(`INSERT INTO preference (scope, key, value, created_at, updated_at)
+        VALUES ('global', 'chat.default_model_id', '"custom::existing"', 100, 200)`)
+      .run()
+    const oldModels = sqlite.prepare('SELECT * FROM user_model ORDER BY id').all()
+    const oldPins = sqlite.prepare('SELECT * FROM pin').all()
+    const oldPreferences = sqlite.prepare('SELECT * FROM preference').all()
+
+    applyMigrations(db, resolveMigrationsPath())
+
+    expect(sqlite.prepare('SELECT * FROM user_model ORDER BY id').all()).toEqual(
+      oldModels.map((row) => ({ ...(row as object), discovery_source: null }))
+    )
+    expect(sqlite.prepare('SELECT * FROM pin').all()).toEqual(oldPins)
+    expect(sqlite.prepare('SELECT * FROM preference').all()).toEqual(oldPreferences)
+    const sparse = sqlite.prepare(`INSERT INTO user_model
+      (id, provider_id, model_id, discovery_source, order_key, created_at, updated_at)
+      VALUES (?, 'custom', ?, ?, 'a2', 300, 400)`)
+    expect(() => sparse.run('custom::invalid', 'invalid', null)).toThrow()
+    expect(() => sparse.run('custom::invalid-source', 'invalid-source', 'untrusted')).toThrow()
+    expect(() => sparse.run('custom::discovered', 'discovered', 'provider-api')).not.toThrow()
+    expect(sqlite.pragma('foreign_key_check')).toEqual([])
+    expect(String(sqlite.pragma('integrity_check', { simple: true }))).toBe('ok')
+  })
+
   /** Seed rows that exercise both `file_entry` variants plus a child reference. */
   function seedBaselineRows(): void {
     const now = Date.now()

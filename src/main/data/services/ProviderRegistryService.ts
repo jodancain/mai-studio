@@ -1081,6 +1081,29 @@ class ProviderRegistryService {
     return this.resolveModel(this.getEffectiveProviderContext(providerId), modelId)
   }
 
+  resolveExactModel(providerContext: ReasoningProviderContext, apiModelId: string): Model | null {
+    const loader = this.getLoader()
+    const providerId =
+      this.resolveProviderPreset(providerContext.id, providerContext.presetProviderId)?.id ?? providerContext.id
+    const registryOverride =
+      loader
+        .loadProviderModels()
+        .find((row) => row.providerId === providerId && (row.apiModelId ?? row.modelId) === apiModelId) ?? null
+    const presetModel =
+      loader.loadModels().find((row) => row.id === (registryOverride?.modelId ?? apiModelId)) ??
+      (registryOverride ? synthesizePresetFromOverride(registryOverride) : null)
+    if (!presetModel) return null
+    const profile = this.resolveProfileForModelData(providerContext, presetModel, registryOverride, apiModelId)
+    const model = mergePresetModel(presetModel, registryOverride, providerContext.id, profile.wire)
+    return {
+      ...model,
+      id: createUniqueModelId(providerContext.id, apiModelId),
+      apiModelId,
+      presetModelId: presetModel.id,
+      endpointTypes: registryOverride?.endpointTypes ?? presetModel.endpointTypes
+    }
+  }
+
   /** Resolve registry metadata from explicit provider context without querying SQLite. */
   resolveModel(
     providerContext: ReasoningProviderContext,

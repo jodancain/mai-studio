@@ -1,5 +1,5 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
-import { omit } from 'es-toolkit/compat'
+import { ArrowLeft } from 'lucide-react'
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -10,8 +10,10 @@ import type { AppRouter } from '@renderer/types/router'
 import { isProviderSettingsListVisibleProvider } from '@renderer/utils/providerSettings'
 import type { Provider } from '@shared/data/types/provider'
 
+import { useSettingsSearchKeyboard } from '../settingsSearch/store'
 import type { ProviderApiSetupInitialStep } from './ConnectionSettings/ProviderApiSetupDialog'
 import { useProviderDeepLinkImport } from './hooks/useProviderDeepLinkImport'
+import ModelApiCenter from './ModelApiCenter/ModelApiCenter'
 import { ProviderList } from './ProviderList'
 import ProviderSetting from './ProviderSetting'
 
@@ -91,8 +93,16 @@ function ProviderSettingsContent({ rawProviders }: ProviderSettingsContentProps)
     }
 
     if (shouldConsume) {
-      const restSearch = omit(search, ['filter', 'id'])
-      void navigate({ to: '/settings/provider', search: restSearch, replace: true })
+      void navigate({
+        to: '/settings/provider',
+        search: (previous) => {
+          const rest = { ...previous }
+          delete rest.filter
+          delete rest.id
+          return rest
+        },
+        replace: true
+      })
     }
   }, [navigate, search, setSelectedProviderId, visibleProviders])
 
@@ -139,7 +149,34 @@ function ProviderSettingsContent({ rawProviders }: ProviderSettingsContentProps)
 
 export default function ProviderSettingsPage() {
   const { t } = useTranslation()
+  const search = useSearch<AppRouter, undefined, false>({ strict: false })
+  const navigate = useNavigate()
+  const { pendingFocusId } = useSettingsSearchKeyboard()
+  const focusId = search.focusId ?? pendingFocusId
+  const centerFocus = focusId?.match(/^setting-provider-(api-checks|model-updates|auto-adaptation)$/)?.[1]
+  const hasConfigurationIntent = !!(
+    search.id ||
+    search.filter ||
+    search.addProviderData ||
+    (!centerFocus && focusId?.startsWith('setting-provider-'))
+  )
+  const [configurationOpen, setConfigurationOpen] = useState(hasConfigurationIntent)
   const { providers, hasLoaded, isLoading, error, refetch } = useProviders()
+
+  useEffect(() => {
+    if (hasConfigurationIntent) setConfigurationOpen(true)
+    else if (centerFocus) setConfigurationOpen(false)
+  }, [centerFocus, hasConfigurationIntent])
+
+  const openConfiguration = useCallback(
+    (providerId?: string) => {
+      setConfigurationOpen(true)
+      if (providerId) {
+        void navigate({ to: '/settings/provider', search: (previous) => ({ ...previous, id: providerId }) })
+      }
+    },
+    [navigate]
+  )
 
   if (error && !hasLoaded) {
     return (
@@ -168,5 +205,24 @@ export default function ProviderSettingsPage() {
     )
   }
 
-  return <ProviderSettingsContent rawProviders={providers} />
+  return (
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col">
+      <div hidden={configurationOpen} className="min-h-0 flex-1">
+        <ModelApiCenter providers={providers} onConfigureProvider={openConfiguration} focusTab={centerFocus} />
+      </div>
+      {configurationOpen ? (
+        <>
+          <div className="flex h-10 shrink-0 items-center border-b border-border-subtle px-3">
+            <Button variant="ghost" size="sm" onClick={() => setConfigurationOpen(false)}>
+              <ArrowLeft className="size-4" />
+              {t('settings.model_api.back')}
+            </Button>
+          </div>
+          <div className="min-h-0 flex-1">
+            <ProviderSettingsContent rawProviders={providers} />
+          </div>
+        </>
+      ) : null}
+    </div>
+  )
 }

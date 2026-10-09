@@ -1,11 +1,10 @@
 import { MockUseCacheUtils } from '@test-mocks/renderer/useCache'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '@renderer/i18n/resolver'
 
-import { useProviderDeepLinkImport } from '../hooks/useProviderDeepLinkImport'
 import ProviderSettingsPage from '../ProviderSettingsPage'
 
 const navigateMock = vi.fn()
@@ -23,6 +22,14 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('../hooks/useProviderDeepLinkImport', () => ({
   useProviderDeepLinkImport: vi.fn()
+}))
+
+vi.mock('../ModelApiCenter/ModelApiCenter', () => ({
+  default: ({ onConfigureProvider }: { onConfigureProvider: () => void }) => (
+    <button type="button" onClick={onConfigureProvider}>
+      Open provider settings
+    </button>
+  )
 }))
 
 vi.mock('../ProviderList', () => ({
@@ -76,7 +83,7 @@ describe('ProviderSettingsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     MockUseCacheUtils.resetMocks()
-    searchMock = {}
+    searchMock = { focusId: 'setting-provider-api-key' }
     useProvidersMock.mockReturnValue({
       providers,
       hasLoaded: true,
@@ -164,7 +171,8 @@ describe('ProviderSettingsPage', () => {
   it('restores the last selected provider after leaving and returning to the page', async () => {
     const first = render(<ProviderSettingsPage />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'select-anthropic' }))
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: 'select-anthropic' }))
     await screen.findByText('provider-setting-anthropic')
 
     first.unmount()
@@ -185,8 +193,21 @@ describe('ProviderSettingsPage', () => {
     })
     expect(navigateMock).toHaveBeenCalledWith({
       to: '/settings/provider',
-      search: {},
+      search: expect.any(Function),
       replace: true
+    })
+  })
+
+  it('consumes provider selection without restoring an already-consumed focus anchor', async () => {
+    searchMock = { id: 'anthropic', filter: 'agent', focusId: 'setting-provider-api-key' }
+    render(<ProviderSettingsPage />)
+    expect(await screen.findByText('provider-setting-anthropic')).toBeInTheDocument()
+    const consume = navigateMock.mock.calls.find(([options]) => options.replace)?.[0].search
+    expect(consume({ id: 'anthropic', filter: 'agent', addProviderData: 'pending-import' })).toEqual({
+      addProviderData: 'pending-import'
+    })
+    expect(consume({ id: 'anthropic', focusId: 'setting-provider-model-list' })).toEqual({
+      focusId: 'setting-provider-model-list'
     })
   })
 
@@ -217,7 +238,7 @@ describe('ProviderSettingsPage', () => {
 
     expect(screen.getByText('provider-setting-anthropic')).toBeInTheDocument()
     expect(screen.getByTestId('selected-provider-id')).toHaveTextContent('anthropic')
-    expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/provider', search: {}, replace: true })
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/provider', search: expect.any(Function), replace: true })
   })
 
   it('does not select CherryAI when it is remembered or requested by URL', async () => {
@@ -255,13 +276,16 @@ describe('ProviderSettingsPage', () => {
     expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
   })
 
-  it('passes a stable provider selector to deep-link import across rerenders', () => {
-    const { rerender } = render(<ProviderSettingsPage />)
-    const firstSelector = vi.mocked(useProviderDeepLinkImport).mock.calls.at(-1)?.[1]
-
-    rerender(<ProviderSettingsPage />)
-
-    expect(vi.mocked(useProviderDeepLinkImport).mock.calls.at(-1)?.[1]).toBe(firstSelector)
+  it('starts at the center and opens provider settings on request', async () => {
+    searchMock = {}
+    const user = userEvent.setup()
+    render(<ProviderSettingsPage />)
+    expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Open provider settings' }))
+    expect(await screen.findByText('provider-setting-openai')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: i18n.t('settings.model_api.back') }))
+    expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Open provider settings' })).toBeVisible()
   })
 
   it.each([

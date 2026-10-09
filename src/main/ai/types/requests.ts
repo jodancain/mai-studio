@@ -110,6 +110,8 @@ export interface ListModelsRequest {
   providerId?: string
   assistantId?: string
   throwOnError?: boolean
+  /** Main-only cancellation; the IPC schema never accepts a signal. */
+  signal?: AbortSignal
 }
 
 export type ChatTrigger = Parameters<ChatTransport<UIMessage>['sendMessages']>[0]['trigger']

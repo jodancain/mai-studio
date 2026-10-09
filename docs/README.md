@@ -13,6 +13,7 @@
 | [Feishu Notification Script](./contrib/feishu-notify.md) | CLI script that sends Feishu webhook card notifications from GitHub Actions workflows, with command reference |
 | [Linux Packaging](./contrib/linux-packaging.md) | Linux packaging flow using pinned better-sqlite3 prebuilds, with build commands and prebuild update steps |
 | [mai studio 维护状态](./contrib/mai-studio-status.md) | mai studio 私有分支的维护范围、群聊修复、历史验收证据与正式发布待办 |
+| [Model and API Center](./contrib/model-api-center.md) | Model and API center behavior, production boundaries, and validation contracts |
 | [Release Workflow Operations](./contrib/release-workflow.md) | Maintainer runbook for preparing, validating, hotfixing, publishing, and synchronizing release branches |
 | [Test Plan](./contrib/test-plan.md) | The Test Plan process for beta and rc testing, covering user participation and maintainer PR workflow |
 

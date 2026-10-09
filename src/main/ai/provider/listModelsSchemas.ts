@@ -10,7 +10,7 @@ import * as z from 'zod'
 // === OpenAI-compatible (also used by OpenRouter, PPIO, etc.) ===
 
 const OpenAIModelSchema = z.looseObject({
-  id: z.string(),
+  id: z.string().refine((id) => id.trim().length > 0),
   name: z.string().optional(),
   object: z.string().optional().default('model'),
   created: z.number().optional(),
@@ -25,7 +25,9 @@ const OpenAIModelItemSchema = z.unknown().transform((model) => {
 export const OpenAIModelsResponseSchema = z
   .object({
     data: z.array(OpenAIModelItemSchema),
-    object: z.string().optional()
+    object: z.string().optional(),
+    has_more: z.boolean().optional(),
+    nextPageToken: z.string().optional()
   })
   .transform((response) => {
     const data = response.data.filter((model): model is z.output<typeof OpenAIModelSchema> => model !== undefined)
@@ -103,7 +105,7 @@ export const OllamaShowResponseSchema = z.looseObject({
 export const GeminiModelsResponseSchema = z.object({
   models: z.array(
     z.looseObject({
-      name: z.string(),
+      name: z.string().refine((name) => name.replace(/^models\//, '').trim().length > 0),
       displayName: z.string().optional(),
       description: z.string().optional(),
       version: z.string().optional(),
@@ -267,12 +269,13 @@ export const VercelGatewayModelsResponseSchema = z.object({
 export const AnthropicModelsResponseSchema = z.object({
   data: z.array(
     z.looseObject({
-      id: z.string(),
+      id: z.string().refine((id) => id.trim().length > 0),
       display_name: z.string().optional(),
       created_at: z.string().optional()
     })
   ),
-  has_more: z.boolean().optional()
+  has_more: z.boolean().optional(),
+  last_id: z.string().optional()
 })
 
 // === AIHubMix ===

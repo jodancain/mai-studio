@@ -915,6 +915,34 @@
       "defaultValue": "none",
       "status": "classified",
       "description": "Reasoning effort for the translate model; 'none' reproduces the hardcoded behaviour that predates this setting (v2 new feature, no v1 source)"
+    },
+    {
+      "targetKey": "model_api.catalog.discovery_enabled",
+      "type": "boolean",
+      "defaultValue": false,
+      "status": "classified",
+      "description": "Automatically discover model candidates from configured provider APIs"
+    },
+    {
+      "targetKey": "model_api.catalog.automatic_verify_enabled",
+      "type": "boolean",
+      "defaultValue": false,
+      "status": "classified",
+      "description": "Automatically run bounded paid conversation probes after explicit consent"
+    },
+    {
+      "targetKey": "model_api.catalog.automatic_apply_enabled",
+      "type": "boolean",
+      "defaultValue": false,
+      "status": "classified",
+      "description": "Automatically add only newly discovered candidates with current successful verification"
+    },
+    {
+      "targetKey": "model_api.catalog.paid_verification_confirmed_at",
+      "type": "number",
+      "defaultValue": 0,
+      "status": "classified",
+      "description": "Timestamp of explicit consent to bounded automatic paid verification"
     }
   ]
 }

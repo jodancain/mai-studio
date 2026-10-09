@@ -1,5 +1,5 @@
 import { bootConfigValid, hardwareAcceleration } from './checks/config'
-import { modelEndpoint, modelList, modelConversation } from './checks/connectivity'
+import { modelEndpoint, modelList, modelConversation, modelStreaming, modelTools } from './checks/connectivity'
 import {
   installArchitectureMatch,
   installNativeModules,
@@ -30,6 +30,8 @@ export const doctorCheckRegistry: DoctorCheckRegistry = {
   'network-model-endpoint': modelEndpoint,
   'provider-model-list': modelList,
   'provider-model-conversation': modelConversation,
+  'provider-model-streaming': modelStreaming,
+  'provider-model-tools': modelTools,
   'install-architecture-match': installArchitectureMatch,
   'install-version-channel': installVersionChannel,
   'install-update-available': installUpdateAvailable,

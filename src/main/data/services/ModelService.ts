@@ -7,13 +7,19 @@
  * - Registry import support
  */
 
-import { and, asc, eq, inArray, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
 import { isEqual } from 'es-toolkit/compat'
 
 import { application } from '@application'
 import type { ModelLookupResult } from '@cherrystudio/provider-registry'
 import { inferReasoningOwnedBy } from '@cherrystudio/provider-registry'
 import { notifyDataApiDataChange } from '@data/dataApiDataChange'
+import { agentTable } from '@data/db/schemas/agent'
+import { agentSessionMessageTable } from '@data/db/schemas/agentSessionMessage'
+import { assistantTable } from '@data/db/schemas/assistant'
+import { knowledgeBaseTable } from '@data/db/schemas/knowledge'
+import { messageTable } from '@data/db/schemas/message'
+import { pinTable } from '@data/db/schemas/pin'
 import type { InsertUserModelRow, UserModelRow } from '@data/db/schemas/userModel'
 import { userModelTable } from '@data/db/schemas/userModel'
 import { userProviderTable } from '@data/db/schemas/userProvider'
@@ -483,8 +489,193 @@ function createPresetFallback(
   return applyStoredModelState(applyStoredPresetDeltas(baseline, row), row)
 }
 
+export type DiscoveredModelChange = {
+  model: Model
+  change: 'new' | 'missing' | 'restored'
+  expected: UserModelRow | null
+  verified: boolean
+}
+
+export type DiscoveredModelReceipt = {
+  id: string
+  before: UserModelRow | null
+  after: UserModelRow
+  fields: Array<'isDeprecated'>
+}
+
 class ModelService {
-  private getRegistryBaseline(providerContext: ReasoningProviderContext, modelId: string): Model | null {
+  readDiscoveryRows(providerId: string): UserModelRow[] {
+    providerService.assertAvailable(providerId)
+    return application
+      .get('DbService')
+      .getDb()
+      .select()
+      .from(userModelTable)
+      .where(eq(userModelTable.providerId, providerId))
+      .all()
+  }
+
+  applyDiscoveredModels(changes: DiscoveredModelChange[]): DiscoveredModelReceipt[] {
+    assertProvidersAvailable(changes.map(({ model }) => model.providerId))
+    const receipts = application.get('DbService').withWriteTx((tx) => {
+      const results: DiscoveredModelReceipt[] = []
+      for (const change of changes) {
+        const { model } = change
+        const apiModelId = model.apiModelId
+        if (!apiModelId || model.id !== createUniqueModelId(model.providerId, apiModelId))
+          throw new Error('Discovered model identity changed')
+        assertManagedCherryAiDefaultModelMutationAllowed(model.providerId, apiModelId, 'apply discovered model')
+        const [current] = tx.select().from(userModelTable).where(eq(userModelTable.id, model.id)).all()
+        if (!isEqual(current ?? null, change.expected)) throw new Error('Model changed since discovery; scan again')
+        if (change.change === 'new') {
+          if (current) throw new Error('Discovered model already exists')
+          const [after] = insertManyWithOrderKey(
+            tx,
+            userModelTable,
+            [
+              {
+                id: model.id,
+                providerId: model.providerId,
+                modelId: apiModelId,
+                presetModelId: model.presetModelId ?? null,
+                discoverySource: 'provider-api' as const,
+                name: null,
+                description: null,
+                group: null,
+                capabilities: null,
+                inputModalities: null,
+                inputModalitiesExplicit: false,
+                outputModalities: null,
+                endpointTypes: model.endpointTypes ?? null,
+                contextWindow: null,
+                maxInputTokens: null,
+                maxOutputTokens: null,
+                supportsStreaming: model.supportsStreaming,
+                pricing: null,
+                isEnabled: change.verified,
+                isHidden: false,
+                isDeprecated: false
+              }
+            ],
+            { pkColumn: userModelTable.id, scope: eq(userModelTable.providerId, model.providerId) }
+          ) as UserModelRow[]
+          results.push({ id: model.id, before: null, after, fields: [] })
+        } else {
+          if (!current) throw new Error('Discovered model no longer exists')
+          const isDeprecated = change.change === 'missing'
+          if (current.isDeprecated === isDeprecated) continue
+          const [after] = tx
+            .update(userModelTable)
+            .set({ isDeprecated })
+            .where(eq(userModelTable.id, model.id))
+            .returning()
+            .all()
+          results.push({ id: model.id, before: current, after, fields: ['isDeprecated'] })
+        }
+      }
+      return results
+    })
+    this.notifyDiscoveryChanges(receipts.map(({ id }) => id))
+    return receipts
+  }
+
+  undoDiscoveredModels(receipts: DiscoveredModelReceipt[]): string[] {
+    const defaults = getUserDefaultModelIds()
+    const { conflicts, changed } = application.get('DbService').withWriteTx((tx) => {
+      const conflicts: string[] = []
+      const changed: string[] = []
+      for (const receipt of receipts) {
+        const [current] = tx.select().from(userModelTable).where(eq(userModelTable.id, receipt.id)).all()
+        if (!current) {
+          conflicts.push(receipt.id)
+          continue
+        }
+        if (receipt.before === null) {
+          const [pin] = tx
+            .select()
+            .from(pinTable)
+            .where(and(eq(pinTable.entityType, 'model'), eq(pinTable.entityId, receipt.id)))
+            .limit(1)
+            .all()
+          if (!isEqual(current, receipt.after) || defaults.has(receipt.id) || pin) {
+            conflicts.push(receipt.id)
+            continue
+          }
+          // FK delete actions would clear later selections and historical model attribution.
+          const referenced =
+            tx
+              .select({ id: assistantTable.id })
+              .from(assistantTable)
+              .where(eq(assistantTable.modelId, receipt.id))
+              .limit(1)
+              .get() ||
+            tx
+              .select({ id: agentTable.id })
+              .from(agentTable)
+              .where(
+                or(
+                  eq(agentTable.model, receipt.id),
+                  eq(agentTable.planModel, receipt.id),
+                  eq(agentTable.smallModel, receipt.id)
+                )
+              )
+              .limit(1)
+              .get() ||
+            tx
+              .select({ id: messageTable.id })
+              .from(messageTable)
+              .where(eq(messageTable.modelId, receipt.id))
+              .limit(1)
+              .get() ||
+            tx
+              .select({ id: agentSessionMessageTable.id })
+              .from(agentSessionMessageTable)
+              .where(eq(agentSessionMessageTable.modelId, receipt.id))
+              .limit(1)
+              .get() ||
+            tx
+              .select({ id: knowledgeBaseTable.id })
+              .from(knowledgeBaseTable)
+              .where(
+                or(
+                  eq(knowledgeBaseTable.embeddingModelId, receipt.id),
+                  eq(knowledgeBaseTable.rerankModelId, receipt.id)
+                )
+              )
+              .limit(1)
+              .get()
+          if (referenced) {
+            conflicts.push(receipt.id)
+            continue
+          }
+          tx.delete(userModelTable).where(eq(userModelTable.id, receipt.id)).run()
+        } else {
+          if (!receipt.fields.every((field) => isEqual(current[field], receipt.after[field]))) {
+            conflicts.push(receipt.id)
+            continue
+          }
+          const updates = Object.fromEntries(receipt.fields.map((field) => [field, receipt.before![field]]))
+          tx.update(userModelTable).set(updates).where(eq(userModelTable.id, receipt.id)).run()
+        }
+        changed.push(receipt.id)
+      }
+      return { conflicts, changed }
+    })
+    this.notifyDiscoveryChanges(changed)
+    return conflicts
+  }
+
+  private notifyDiscoveryChanges(ids: string[]): void {
+    if (ids.length === 0) return
+    notifyDataApiDataChange([
+      { endpoint: '/models', kind: 'projection', entityIds: ids },
+      { endpoint: '/models/:uniqueModelId*', entityIds: ids },
+      { endpoint: '/providers/:providerId/models:resolve', kind: 'membership' }
+    ])
+  }
+
+  private getRegistryBaseline(providerContext: ReasoningProviderContext, modelId: string, exact = false): Model | null {
+    if (exact) return providerRegistryService.resolveExactModel(providerContext, modelId)
     const { presetModel, registryOverride, reasoningProfile, serviceTierControl } =
       providerRegistryService.resolveModel(providerContext, modelId)
     if (!presetModel) return null
@@ -542,17 +733,19 @@ class ModelService {
     dto: UpdateModelDto
   ): Partial<InsertUserModelRow> {
     const updates: Partial<InsertUserModelRow> = {}
+    const sparse = existing.presetModelId != null || existing.discoverySource === 'provider-api'
     const hasPresetDeltaField = (Object.keys(dto) as (keyof UpdateModelDto)[])
       .map(dtoKeyToDbKey)
       .some(isPresetDeltaField)
 
     let baseline: Model | null = null
-    if (existing.presetModelId && hasPresetDeltaField) {
+    if (sparse && hasPresetDeltaField) {
       try {
         const context = providerService
           .getReasoningContextsByProviderIdsTx(tx, [existing.providerId])
           .get(existing.providerId)
-        if (context) baseline = this.getRegistryBaseline(context, existing.modelId)
+        if (context)
+          baseline = this.getRegistryBaseline(context, existing.modelId, existing.discoverySource === 'provider-api')
       } catch (error) {
         logger.warn('Registry baseline lookup failed; preserving model fields as user overrides', {
           providerId: existing.providerId,
@@ -567,7 +760,7 @@ class ModelService {
       const value = dto[dtoKey]
       if (value === undefined) continue
 
-      if (existing.presetModelId && isPresetDeltaField(String(dbKey))) {
+      if (sparse && isPresetDeltaField(String(dbKey))) {
         const field = String(dbKey) as PresetDeltaField
         if (baseline && matchesBaseline(value, getBaselineField(baseline, field), field)) {
           ;(updates as Record<string, unknown>)[dbKey] = null
@@ -717,6 +910,25 @@ class ModelService {
     return rows.flatMap((row) => {
       const providerContext = providerContexts.get(row.providerId)
       if (!providerContext) return []
+      if (row.discoverySource === 'provider-api') {
+        let baseline: Model | null = null
+        try {
+          baseline = providerRegistryService.resolveExactModel(providerContext, row.modelId)
+        } catch {
+          logger.warn('Exact registry enrichment unavailable', { modelId: row.id })
+        }
+        const model = baseline ?? {
+          id: createUniqueModelId(row.providerId, row.modelId),
+          providerId: row.providerId,
+          apiModelId: row.modelId,
+          name: row.name ?? row.modelId,
+          capabilities: [],
+          supportsStreaming: false,
+          isEnabled: row.isEnabled,
+          isHidden: row.isHidden
+        }
+        return applyStoredModelState(applyStoredPresetDeltas(model, row), row)
+      }
       if (row.presetModelId) {
         try {
           const { presetModel, registryOverride, reasoningProfile, serviceTierControl } =

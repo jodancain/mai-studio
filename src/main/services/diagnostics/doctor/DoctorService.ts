@@ -153,6 +153,7 @@ export class DoctorService extends BaseService {
   async checkConnectivity(input: {
     subject: DoctorConnectivitySubject
     runId: string
+    checkIds?: readonly DoctorCheckId[]
   }): Promise<DoctorConnectivityResult> {
     if (!this.allReady) throw new Error('Doctor is not ready')
     const scope = doctorScopeKey(input.subject)
@@ -160,7 +161,7 @@ export class DoctorService extends BaseService {
     if (active) return { status: 'busy', runId: active.runId }
     const subject = this.resolveSubject(input.subject)
     if (!subject?.providerId || !subject.modelId) throw new Error('No model is configured for this subject')
-    const ids = this.selectChecks([...DOCTOR_CONNECTIVITY_CHECK_IDS], 'live', subject)
+    const ids = this.selectChecks(input.checkIds ?? [...DOCTOR_CONNECTIVITY_CHECK_IDS], 'live', subject)
     const record = this.createExecution(scope, input.runId, input.subject, ids)
     const controller = new AbortController()
     this.connectivityRuns.set(scope, { runId: input.runId, controller })
