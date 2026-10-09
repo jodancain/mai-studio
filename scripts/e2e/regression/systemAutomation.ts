@@ -223,14 +223,72 @@ export function focusNativeApp(platform: Platform, paths: RunPaths): void {
   const script = [
     '$ErrorActionPreference = "Stop"',
     'Add-Type -AssemblyName UIAutomationClient',
-    `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class NativeMainFocus { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result); }'`,
+    `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices;
+public static class NativeMainFocus {
+  [StructLayout(LayoutKind.Sequential)] public struct Point { public int x, y; }
+  [StructLayout(LayoutKind.Sequential)] public struct Rect { public int left, top, right, bottom; }
+  [StructLayout(LayoutKind.Sequential)] public struct MouseInput { public int dx, dy; public uint mouseData, flags, time; public IntPtr extra; }
+  [StructLayout(LayoutKind.Explicit)] public struct InputUnion { [FieldOffset(0)] public MouseInput mouse; }
+  [StructLayout(LayoutKind.Sequential)] public struct Input { public uint type; public InputUnion data; }
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result);
+  [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr window, out Rect rect);
+  [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(Point point);
+  [DllImport("user32.dll")] static extern IntPtr GetAncestor(IntPtr window, uint flags);
+  [DllImport("user32.dll")] static extern bool GetCursorPos(out Point point);
+  [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] static extern uint SendInput(uint count, Input[] inputs, int size);
+  [DllImport("user32.dll")] static extern short GetAsyncKeyState(int key);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr window, out uint pid);
+  static bool IsCaption(IntPtr window, Point point) {
+    IntPtr hit;
+    return GetAncestor(WindowFromPoint(point), 2) == window && SendMessageTimeout(window, 0x84, IntPtr.Zero, new IntPtr((point.y << 16) | (point.x & 0xffff)), 2, 1000, out hit) != IntPtr.Zero && hit.ToInt64() == 2;
+  }
+  public static void ClickCaption(IntPtr window, uint pid) {
+    uint owner; GetWindowThreadProcessId(window, out owner);
+    if (owner != pid) throw new Exception("Owned title bar PID changed");
+    for (int key = 1; key <= 254; key++) if (GetAsyncKeyState(key) < 0) throw new Exception("Native input is already held");
+    Rect rect; Point previous;
+    if (!GetWindowRect(window, out rect) || !GetCursorPos(out previous)) throw new Exception("Owned title bar bounds unavailable");
+    foreach (int x in new int[] { (rect.left + rect.right) / 2, rect.left + 120, rect.right - 180 }) foreach (int y in new int[] { rect.top + 12, rect.top + 22, rect.top + 32 }) {
+      Point target = new Point { x = x, y = y };
+      if (x < -32768 || x > 32767 || y < -32768 || y > 32767 || !IsCaption(window, target)) continue;
+      if (!SetCursorPos(x, y)) throw new Exception("Owned title bar cursor placement failed");
+      bool cursorMayBeRestored = true;
+      try {
+        Point actual;
+        if (!GetCursorPos(out actual) || actual.x != x || actual.y != y || !IsCaption(window, actual)) throw new Exception("Owned title bar no longer available");
+        GetWindowThreadProcessId(window, out owner);
+        if (owner != pid) throw new Exception("Owned title bar PID changed");
+        for (int key = 1; key <= 254; key++) if (GetAsyncKeyState(key) < 0) throw new Exception("Native input is already held");
+        Input down = new Input { data = new InputUnion { mouse = new MouseInput { flags = 2 } } };
+        Input up = new Input { data = new InputUnion { mouse = new MouseInput { flags = 4 } } };
+        uint sent = SendInput(2, new Input[] { down, up }, Marshal.SizeOf(typeof(Input)));
+        if (sent == 1) cursorMayBeRestored = SendInput(1, new Input[] { up }, Marshal.SizeOf(typeof(Input))) == 1;
+        if (sent != 2) throw new Exception("Owned title bar input rejected");
+        return;
+      } finally {
+        if (!cursorMayBeRestored) throw new Exception("Native input release unconfirmed; cursor left unchanged");
+        Point restored;
+        if (!SetCursorPos(previous.x, previous.y) || !GetCursorPos(out restored) || restored.x != previous.x || restored.y != previous.y) throw new Exception("Native cursor could not be restored");
+      }
+    }
+    throw new Exception("Owned title bar could not be safely clicked");
+  }
+}'`,
     '$root = [System.Windows.Automation.AutomationElement]::RootElement',
     `$condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${record.electronPid})`,
     '$windows = @($root.FindAll([System.Windows.Automation.TreeScope]::Children, $condition) | Where-Object { $_.Current.ClassName -eq "Chrome_WidgetWin_1" -and -not $_.Current.IsOffscreen -and $_.Current.IsEnabled })',
     'if ($windows.Count -ne 1) { throw "Owned main window was not uniquely available" }',
     '$mainHandle = [IntPtr]$windows[0].Current.NativeWindowHandle',
-    '$shell = New-Object -ComObject WScript.Shell',
-    `if (-not $shell.AppActivate(${record.electronPid})) { throw "Owned main window could not be activated" }`,
+    '$clicked = $false',
+    'if ([NativeMainFocus]::GetForegroundWindow() -ne $mainHandle) {',
+    '  $shell = New-Object -ComObject WScript.Shell',
+    `  $null = $shell.AppActivate(${record.electronPid})`,
+    '  $result = [IntPtr]::Zero',
+    '  $null = [NativeMainFocus]::SendMessageTimeout($mainHandle, 0, [IntPtr]::Zero, [IntPtr]::Zero, 0, 1000, [ref]$result)',
+    `  if ([NativeMainFocus]::GetForegroundWindow() -ne $mainHandle) { [NativeMainFocus]::ClickCaption($mainHandle, ${record.electronPid}); $clicked = $true }`,
+    '}',
     '$deadline = [DateTime]::UtcNow.AddSeconds(5)',
     'do {',
     '  $result = [IntPtr]::Zero',
@@ -238,12 +296,13 @@ export function focusNativeApp(platform: Platform, paths: RunPaths): void {
     '  if ([NativeMainFocus]::GetForegroundWindow() -eq $mainHandle) { break }',
     '  Start-Sleep -Milliseconds 100',
     '} while ([DateTime]::UtcNow -lt $deadline)',
-    'if ([NativeMainFocus]::GetForegroundWindow() -ne $mainHandle) { throw "Owned main window could not be focused" }'
+    'if ([NativeMainFocus]::GetForegroundWindow() -ne $mainHandle) { throw "Owned main window could not be focused" }',
+    '[PSCustomObject]@{ foregroundVerified = $true; ownedCaptionClicked = $clicked } | ConvertTo-Json -Compress'
   ].join('\n')
   execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
-    timeout: 10_000
+    timeout: 30_000
   })
 }
 
@@ -297,7 +356,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       'Add-Type -AssemblyName UIAutomationClient',
       'Add-Type -AssemblyName UIAutomationTypes',
       'Add-Type -AssemblyName System.Windows.Forms',
-      `Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result); [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, string lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, StringBuilder lParam); }'`,
+      `Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr window); [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result); [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, string lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, StringBuilder lParam); }'`,
       '$root = [System.Windows.Automation.AutomationElement]::RootElement',
       `$processCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${electronPid})`,
       '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
@@ -337,12 +396,21 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
             '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
             '$navigated = $false',
             'do {',
-            '  $dialog = [System.Windows.Automation.AutomationElement]::FromHandle($dialogHandle)',
-            '  $breadcrumb = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ClassName -eq "ToolbarWindow32" -and $_.Current.AutomationId -eq "1001" } | Select-Object -First 1',
-            '  if ($breadcrumb) {',
-            '    $name = $breadcrumb.Current.Name',
-            '    $colon = $name.IndexOf(":")',
-            '    if ($colon -ge 0) { $navigated = [string]::Equals($name.Substring($colon + 1).Trim().TrimEnd([char]92), $target.TrimEnd([char]92), [StringComparison]::OrdinalIgnoreCase) }',
+            '  if (-not [NativeDialog]::IsWindow($dialogHandle)) { throw "Native folder dialog closed during navigation" }',
+            '  if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) { throw "Native folder dialog focus was lost" }',
+            '  try {',
+            '    $dialog = [System.Windows.Automation.AutomationElement]::FromHandle($dialogHandle)',
+            '    $breadcrumb = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ClassName -eq "ToolbarWindow32" -and $_.Current.AutomationId -eq "1001" } | Select-Object -First 1',
+            '    if ($breadcrumb) {',
+            '      $name = $breadcrumb.Current.Name',
+            '      $colon = $name.IndexOf(":")',
+            '      if ($colon -ge 0) { $navigated = [string]::Equals($name.Substring($colon + 1).Trim().TrimEnd([char]92), $target.TrimEnd([char]92), [StringComparison]::OrdinalIgnoreCase) }',
+            '    }',
+            '  } catch {',
+            '    $exception = $_.Exception',
+            '    while ($exception -and $exception -isnot [System.Windows.Automation.ElementNotAvailableException]) { $exception = $exception.InnerException }',
+            '    if (-not $exception) { throw }',
+            '    $navigated = $false',
             '  }',
             '  if (-not $navigated) { Start-Sleep -Milliseconds 100 }',
             '} while (-not $navigated -and [DateTime]::UtcNow -lt $deadline)',
