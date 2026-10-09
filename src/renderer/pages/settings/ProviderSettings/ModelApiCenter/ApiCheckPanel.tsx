@@ -26,6 +26,8 @@ import {
   TableRow
 } from '@cherrystudio/ui'
 import { useModels } from '@renderer/hooks/useModel'
+import { isProviderSettingsListVisibleProvider } from '@renderer/utils/providerSettings'
+import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 import type { UniqueModelId } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
 import type {
@@ -101,11 +103,19 @@ function layerMessage(result: ModelApiDiagnosticResult): string {
   return 'settings.model_api.unknown_hint'
 }
 
-function providerAddress(provider: Provider): string {
-  const host = Object.values(provider.endpointConfigs ?? {}).find((endpoint) => endpoint?.baseUrl)?.baseUrl
-  if (!host) return ''
+function providerAddress(provider: Provider, row?: ModelApiProviderDiagnostics, expired = false): string {
+  const snapshot = !expired && row?.status !== 'stale' ? row : undefined
+  // A scheme without default ports preserves the host:port already captured by main.
+  const baseUrl = snapshot
+    ? snapshot.endpoint
+      ? `diagnostic://${snapshot.endpoint}`
+      : undefined
+    : provider.defaultChatEndpoint
+      ? provider.endpointConfigs?.[provider.defaultChatEndpoint]?.baseUrl
+      : Object.values(provider.endpointConfigs ?? {}).find((endpoint) => endpoint?.baseUrl)?.baseUrl
+  if (!baseUrl) return ''
   try {
-    return new URL(host).host
+    return new URL(baseUrl).host
   } catch {
     return ''
   }
@@ -140,7 +150,9 @@ export default function ApiCheckPanel({
   const visible = providers.filter(
     (provider) =>
       (filter === 'all' || diagnosticRowStatus(results.get(provider.id), expired) === filter) &&
-      `${provider.name} ${providerAddress(provider)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())
+      `${provider.name} ${providerAddress(provider, results.get(provider.id), expired)}`
+        .toLocaleLowerCase()
+        .includes(query.toLocaleLowerCase())
   )
   const detailProvider = providers.find((provider) => provider.id === detailId)
   const detail = detailId ? results.get(detailId) : undefined
@@ -268,7 +280,9 @@ export default function ApiCheckPanel({
                   <TableRow key={provider.id} className="h-12">
                     <TableCell className="py-1">
                       <p className="truncate font-medium">{provider.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{providerAddress(provider)}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {providerAddress(provider, row, expired)}
+                      </p>
                     </TableCell>
                     <TableCell className="px-1 py-1">
                       <CenterStatus status={status} />
@@ -439,14 +453,21 @@ export default function ApiCheckPanel({
                 })}
               </div>
               <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setDetailId(null)
-                    onConfigureProvider(detailProvider.id)
-                  }}>
-                  {t('settings.model_api.configure')}
-                </Button>
+                {detailProvider.id === LOCAL_EMBEDDING_PROVIDER_ID ||
+                isProviderSettingsListVisibleProvider(detailProvider) ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setDetailId(null)
+                      onConfigureProvider(detailProvider.id)
+                    }}>
+                    {t(
+                      detailProvider.id === LOCAL_EMBEDDING_PROVIDER_ID
+                        ? 'settings.dependencies.localModels.title'
+                        : 'settings.model_api.configure'
+                    )}
+                  </Button>
+                ) : null}
                 {running ? (
                   <Button variant="outline" disabled={isSubmitting} onClick={() => void diagnostics.cancel()}>
                     {t('common.cancel')}

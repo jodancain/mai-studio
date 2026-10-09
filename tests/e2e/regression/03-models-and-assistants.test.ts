@@ -9,8 +9,10 @@ import { closeSettings, openProviderSettings } from './settings'
 test(...caseDefinition('M-02'), async ({ app, mainWindow }) => {
   let page = mainWindow
   await ensureCustomChatProvider(app, page)
-  await expect(page.getByText(CUSTOM_CHAT_PROVIDER, { exact: true }).first()).toBeVisible()
-  await expect(page.getByText(app.config.customProvider.chatModel, { exact: true }).last()).toBeVisible()
+  await expect(page.getByText(CUSTOM_CHAT_PROVIDER, { exact: true }).filter({ visible: true }).first()).toBeVisible()
+  await expect(
+    page.getByText(app.config.customProvider.chatModel, { exact: true }).filter({ visible: true }).last()
+  ).toBeVisible()
 
   await closeSettings(page)
   await selectChatModel(page, app.config.customProvider.chatModel)
@@ -23,7 +25,7 @@ test(...caseDefinition('M-02'), async ({ app, mainWindow }) => {
   page = await app.restart('authenticated')
   await dismissOnboarding(page)
   await openProviderSettings(page)
-  await expect(page.getByText(CUSTOM_CHAT_PROVIDER, { exact: true }).first()).toBeVisible()
+  await expect(page.getByText(CUSTOM_CHAT_PROVIDER, { exact: true }).filter({ visible: true }).first()).toBeVisible()
 })
 
 test(...caseDefinition('C-01'), async ({ app, mainWindow: page }) => {

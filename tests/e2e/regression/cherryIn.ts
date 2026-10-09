@@ -49,6 +49,7 @@ export async function addCherryInModel(page: Page, model: string, tab?: string):
   if (
     await page
       .getByText(model, { exact: true })
+      .filter({ visible: true })
       .isVisible()
       .catch(() => false)
   )

@@ -8,6 +8,7 @@ import { usePersistCache } from '@data/hooks/useCache'
 import { useProviders } from '@renderer/hooks/useProvider'
 import type { AppRouter } from '@renderer/types/router'
 import { isProviderSettingsListVisibleProvider } from '@renderer/utils/providerSettings'
+import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 import type { Provider } from '@shared/data/types/provider'
 
 import { useSettingsSearchKeyboard } from '../settingsSearch/store'
@@ -170,12 +171,18 @@ export default function ProviderSettingsPage() {
 
   const openConfiguration = useCallback(
     (providerId?: string) => {
+      if (providerId === LOCAL_EMBEDDING_PROVIDER_ID) {
+        void navigate({ to: '/settings/local-models' })
+        return
+      }
+      const provider = providers.find((item) => item.id === providerId)
+      if (provider && !isProviderSettingsListVisibleProvider(provider)) return
       setConfigurationOpen(true)
       if (providerId) {
         void navigate({ to: '/settings/provider', search: (previous) => ({ ...previous, id: providerId }) })
       }
     },
-    [navigate]
+    [navigate, providers]
   )
 
   if (error && !hasLoaded) {

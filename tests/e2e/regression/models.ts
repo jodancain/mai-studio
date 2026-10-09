@@ -25,6 +25,7 @@ async function addModel(page: Page, model: string): Promise<void> {
   if (
     await page
       .getByText(model, { exact: true })
+      .filter({ visible: true })
       .last()
       .isVisible()
       .catch(() => false)
@@ -37,7 +38,7 @@ async function addModel(page: Page, model: string): Promise<void> {
   await dialog.getByRole('button', { name: 'More Settings', exact: true }).click()
   await dialog.getByRole('button', { name: 'Tool', exact: true }).click()
   await dialog.getByRole('button', { name: 'Add Model', exact: true }).click()
-  await expect(page.getByText(model, { exact: true }).last()).toBeVisible()
+  await expect(page.getByText(model, { exact: true }).filter({ visible: true }).last()).toBeVisible()
   await closeOpenSettingsDrawer(page)
 }
 

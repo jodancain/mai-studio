@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import i18n from '@renderer/i18n/resolver'
+import { LOCAL_EMBEDDING_PROVIDER_ID } from '@shared/data/presets/localEmbedding'
 
 import ProviderSettingsPage from '../ProviderSettingsPage'
 
@@ -25,10 +26,23 @@ vi.mock('../hooks/useProviderDeepLinkImport', () => ({
 }))
 
 vi.mock('../ModelApiCenter/ModelApiCenter', () => ({
-  default: ({ onConfigureProvider }: { onConfigureProvider: () => void }) => (
-    <button type="button" onClick={onConfigureProvider}>
-      Open provider settings
-    </button>
+  default: ({
+    onConfigureProvider,
+    providers
+  }: {
+    onConfigureProvider: (id?: string) => void
+    providers: Array<{ id: string }>
+  }) => (
+    <div>
+      <button type="button" onClick={() => onConfigureProvider()}>
+        Open provider settings
+      </button>
+      {providers.map((provider) => (
+        <button key={provider.id} type="button" onClick={() => onConfigureProvider(provider.id)}>
+          Open provider {provider.id}
+        </button>
+      ))}
+    </div>
   )
 }))
 
@@ -286,6 +300,52 @@ describe('ProviderSettingsPage', () => {
     await user.click(screen.getByRole('button', { name: i18n.t('settings.model_api.back') }))
     expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Open provider settings' })).toBeVisible()
+  })
+
+  it('routes a local model entry to its managed page without opening the first provider', async () => {
+    searchMock = {}
+    const user = userEvent.setup()
+    useProvidersMock.mockReturnValue({
+      providers: [...providers, { id: LOCAL_EMBEDDING_PROVIDER_ID, name: 'Local Models' }]
+    })
+    render(<ProviderSettingsPage />)
+    await user.click(screen.getByRole('button', { name: `Open provider ${LOCAL_EMBEDDING_PROVIDER_ID}` }))
+    expect(navigateMock).toHaveBeenCalledWith({ to: '/settings/local-models' })
+    expect(screen.queryByTestId('selected-provider-id')).not.toBeInTheDocument()
+    expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
+  })
+
+  it.each(['cherryai', 'cherryai-subscription'])(
+    'does not redirect a known managed %s entry to another provider',
+    async (id) => {
+      searchMock = {}
+      const user = userEvent.setup()
+      useProvidersMock.mockReturnValue({ providers: [...providers, { id, name: id }] })
+      render(<ProviderSettingsPage />)
+      await user.click(screen.getByRole('button', { name: `Open provider ${id}` }))
+      expect(navigateMock).not.toHaveBeenCalled()
+      expect(screen.queryByTestId('selected-provider-id')).not.toBeInTheDocument()
+      expect(screen.queryByText('provider-setting-openai')).not.toBeInTheDocument()
+    }
+  )
+
+  it('keeps MAI eligible for its own provider configuration', async () => {
+    searchMock = {}
+    const user = userEvent.setup()
+    useProvidersMock.mockReturnValue({ providers: [...providers, { id: 'mai', name: 'MAI' }] })
+    const view = render(<ProviderSettingsPage />)
+    await user.click(screen.getByRole('button', { name: 'Open provider mai' }))
+    const navigation = navigateMock.mock.calls.find(([options]) => options.to === '/settings/provider')?.[0]
+    expect(navigation.search({})).toEqual({ id: 'mai' })
+    searchMock = { id: 'mai' }
+    view.rerender(<ProviderSettingsPage />)
+    expect(await screen.findByText('provider-setting-mai')).toBeInTheDocument()
+  })
+
+  it('preserves the existing fallback for an unknown external provider deep link', async () => {
+    searchMock = { id: 'external-missing-provider' }
+    render(<ProviderSettingsPage />)
+    expect(await screen.findByText('provider-setting-openai')).toBeInTheDocument()
   })
 
   it.each([

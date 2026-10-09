@@ -42,6 +42,7 @@ export async function ensureEmbeddingProvider(app: RegressionApp, page: Page): P
   if (
     !(await page
       .getByText(model, { exact: true })
+      .filter({ visible: true })
       .isVisible()
       .catch(() => false))
   ) {
@@ -52,7 +53,7 @@ export async function ensureEmbeddingProvider(app: RegressionApp, page: Page): P
     await page.getByRole('button', { name: 'Embedding', exact: true }).click()
     await page.getByRole('dialog', { name: 'Add Model' }).getByRole('button', { name: 'Add Model' }).click()
   }
-  await expect(page.getByText(model, { exact: true })).toBeVisible()
+  await expect(page.getByText(model, { exact: true }).filter({ visible: true })).toBeVisible()
 }
 
 export async function ensureKnowledgeBase(
