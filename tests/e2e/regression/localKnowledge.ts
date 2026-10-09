@@ -89,14 +89,15 @@ export async function queryLocalKnowledgeWithMai(app: RegressionApp, page: Page)
   await ensureCustomAssistant(app, page, { id: 'claude-sonnet-5', providerId: 'mai' })
   await page.getByRole('button', { name: `Edit Assistant: ${customAssistantName(app)}`, exact: true }).click()
   await page.getByRole('tab', { name: 'Knowledge', exact: true }).click()
+  const assistantDialog = page.getByRole('dialog').last()
   if (
-    !(await page
+    !(await assistantDialog
       .getByText(knowledgeName(app), { exact: true })
       .isVisible()
       .catch(() => false))
   ) {
-    await page.getByRole('button', { name: 'Add knowledge base', exact: true }).click()
-    await page.getByText(knowledgeName(app), { exact: true }).click()
+    await assistantDialog.getByRole('button', { name: 'Add knowledge base', exact: true }).click()
+    await page.getByRole('dialog').last().getByText(knowledgeName(app), { exact: true }).click()
   }
   const dialog = page.getByRole('dialog').last()
   await expect(dialog.getByText(knowledgeName(app), { exact: true })).toBeVisible()
