@@ -8,19 +8,29 @@ import { closeSettings, openProviderSettings } from './settings'
 
 test(...caseDefinition('M-02'), async ({ app, mainWindow }) => {
   let page = mainWindow
-  await ensureCustomChatProvider(app, page)
+  const providerId = await ensureCustomChatProvider(app, page)
   await expect(page.getByText(CUSTOM_CHAT_PROVIDER, { exact: true }).filter({ visible: true }).first()).toBeVisible()
   await expect(
     page.getByText(app.config.customProvider.chatModel, { exact: true }).filter({ visible: true }).last()
   ).toBeVisible()
 
   await closeSettings(page)
-  await selectChatModel(page, app.config.customProvider.chatModel)
-  await sendChatMarker(
+  await selectChatModel(page, app.config.customProvider.chatModel, providerId)
+  const messageId = await sendChatMarker(
     page,
     'Reply with exactly CUSTOM_PROVIDER_CHAT_PASS and nothing else.',
     'CUSTOM_PROVIDER_CHAT_PASS'
   )
+  const modelId = await page.evaluate(async (id) => {
+    const response = await window.api.dataApi.request({
+      id: 'regression-custom-provider-response',
+      method: 'GET',
+      path: `/messages/${id}`
+    })
+    if (response.error) throw new Error('Could not read the custom provider response')
+    return (response.data as { modelId: string }).modelId
+  }, messageId)
+  expect(modelId).toBe(`${providerId}::${app.config.customProvider.chatModel}`)
 
   page = await app.restart('authenticated')
   await dismissOnboarding(page)

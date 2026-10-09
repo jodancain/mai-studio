@@ -265,7 +265,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       'Add-Type -AssemblyName UIAutomationClient',
       'Add-Type -AssemblyName UIAutomationTypes',
       'Add-Type -AssemblyName System.Windows.Forms',
-      `Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, string lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, StringBuilder lParam); }'`,
+      `Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result); [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, string lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, StringBuilder lParam); }'`,
       '$root = [System.Windows.Automation.AutomationElement]::RootElement',
       `$processCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${electronPid})`,
       '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
@@ -276,8 +276,12 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       '  if (-not $dialog) { Start-Sleep -Milliseconds 200 }',
       '} while (-not $dialog -and [DateTime]::UtcNow -lt $deadline)',
       'if (-not $dialog) { throw "Native file dialog was not found" }',
+      '$shell = New-Object -ComObject WScript.Shell',
+      `if (-not $shell.AppActivate(${electronPid})) { throw "Native file dialog could not be activated" }`,
       '$dialogHandle = [IntPtr]$dialog.Current.NativeWindowHandle',
       '$null = [NativeDialog]::SetForegroundWindow($dialogHandle)',
+      '$activationResult = [IntPtr]::Zero',
+      'if ([NativeDialog]::SendMessageTimeout($dialogHandle, 0, [IntPtr]::Zero, [IntPtr]::Zero, 0, 5000, [ref]$activationResult) -eq [IntPtr]::Zero) { throw "Native file dialog activation did not finish" }',
       'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) { throw "Native file dialog could not be focused" }',
       ...(isDirectory
         ? [

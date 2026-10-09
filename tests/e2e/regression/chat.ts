@@ -3,10 +3,10 @@ import { expect, type Page } from '@playwright/test'
 import { selectVisibleModel } from './models'
 import { selectSidebarApp } from './navigation'
 
-export async function selectChatModel(page: Page, model: string): Promise<void> {
+export async function selectChatModel(page: Page, model: string, providerId?: string): Promise<void> {
   await selectSidebarApp(page, 'Chat')
   await page.getByRole('button', { name: 'Selected models', exact: true }).click()
-  await selectVisibleModel(page, model)
+  await selectVisibleModel(page, model, providerId)
   await expect(page.getByRole('button', { name: 'Selected models', exact: true })).toBeVisible()
 }
 

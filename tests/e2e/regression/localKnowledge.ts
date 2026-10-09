@@ -11,6 +11,7 @@ import type { IpcResult } from '../../../src/shared/ipc/errors/IpcError'
 import type { IpcRoute } from '../../../src/shared/ipc/schemas/ipcSchemas'
 import type { InputFor, OutputFor } from '../../../src/shared/ipc/types'
 import { customAssistantName, ensureCustomAssistant } from './assistants'
+import { selectChatModel } from './chat'
 import { knowledgeName } from './knowledge'
 import type { RegressionApp } from './RegressionApp'
 
@@ -106,6 +107,7 @@ export async function queryLocalKnowledgeWithMai(app: RegressionApp, page: Page)
   const composer = chat.locator('[data-ui~="chat.composer"]')
   await composer.getByRole('button', { name: 'New Chat', exact: true }).click()
   await expect(chat.locator('[data-ui~="chat.message"]')).toHaveCount(0)
+  await selectChatModel(page, 'claude-sonnet-5', 'mai')
   await composer
     .locator('[contenteditable="true"]')
     .first()
