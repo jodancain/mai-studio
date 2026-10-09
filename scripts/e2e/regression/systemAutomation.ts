@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url'
 import { readAppRecord } from './lifecycle'
 import type { RunPaths } from './paths'
 import { resolveAllowedPath } from './paths'
+import { assertOwnedProcess } from './process'
 import type { Platform } from './types'
 
 const ALLOWED_KEYS = new Set(['Alt', 'Control', 'Enter', 'Escape', 'Meta', 'Shift', 'Space', 'a', 'e', 'k', 's'])
@@ -215,6 +216,37 @@ export function openExternalText(platform: Platform, paths: RunPaths, candidateP
   return filePath
 }
 
+export function focusNativeApp(platform: Platform, paths: RunPaths): void {
+  if (platform !== 'windows') return
+  const record = readAppRecord(paths)
+  assertOwnedProcess(record, record.electronPid, 'electron')
+  const script = [
+    '$ErrorActionPreference = "Stop"',
+    'Add-Type -AssemblyName UIAutomationClient',
+    `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class NativeMainFocus { [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout, out IntPtr result); }'`,
+    '$root = [System.Windows.Automation.AutomationElement]::RootElement',
+    `$condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${record.electronPid})`,
+    '$windows = @($root.FindAll([System.Windows.Automation.TreeScope]::Children, $condition) | Where-Object { $_.Current.ClassName -eq "Chrome_WidgetWin_1" -and -not $_.Current.IsOffscreen -and $_.Current.IsEnabled })',
+    'if ($windows.Count -ne 1) { throw "Owned main window was not uniquely available" }',
+    '$mainHandle = [IntPtr]$windows[0].Current.NativeWindowHandle',
+    '$shell = New-Object -ComObject WScript.Shell',
+    `if (-not $shell.AppActivate(${record.electronPid})) { throw "Owned main window could not be activated" }`,
+    '$deadline = [DateTime]::UtcNow.AddSeconds(5)',
+    'do {',
+    '  $result = [IntPtr]::Zero',
+    '  $null = [NativeMainFocus]::SendMessageTimeout($mainHandle, 0, [IntPtr]::Zero, [IntPtr]::Zero, 0, 1000, [ref]$result)',
+    '  if ([NativeMainFocus]::GetForegroundWindow() -eq $mainHandle) { break }',
+    '  Start-Sleep -Milliseconds 100',
+    '} while ([DateTime]::UtcNow -lt $deadline)',
+    'if ([NativeMainFocus]::GetForegroundWindow() -ne $mainHandle) { throw "Owned main window could not be focused" }'
+  ].join('\n')
+  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    stdio: ['ignore', 'ignore', 'pipe'],
+    windowsHide: true,
+    timeout: 10_000
+  })
+}
+
 export function chooseNativeFile(platform: Platform, paths: RunPaths, candidatePath: string): string {
   const filePath = resolveAllowedPath(candidatePath, [paths.fixtures, paths.workspace, paths.evidence])
   if (!existsSync(filePath)) throw new Error(`Selected file does not exist: ${filePath}`)
@@ -276,10 +308,12 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       '  if (-not $dialog) { Start-Sleep -Milliseconds 200 }',
       '} while (-not $dialog -and [DateTime]::UtcNow -lt $deadline)',
       'if (-not $dialog) { throw "Native file dialog was not found" }',
-      '$shell = New-Object -ComObject WScript.Shell',
-      `if (-not $shell.AppActivate(${electronPid})) { throw "Native file dialog could not be activated" }`,
       '$dialogHandle = [IntPtr]$dialog.Current.NativeWindowHandle',
-      '$null = [NativeDialog]::SetForegroundWindow($dialogHandle)',
+      'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) {',
+      '  $shell = New-Object -ComObject WScript.Shell',
+      `  if (-not $shell.AppActivate(${electronPid})) { throw "Native file dialog could not be activated" }`,
+      '  $null = [NativeDialog]::SetForegroundWindow($dialogHandle)',
+      '}',
       '$activationResult = [IntPtr]::Zero',
       'if ([NativeDialog]::SendMessageTimeout($dialogHandle, 0, [IntPtr]::Zero, [IntPtr]::Zero, 0, 5000, [ref]$activationResult) -eq [IntPtr]::Zero) { throw "Native file dialog activation did not finish" }',
       'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) { throw "Native file dialog could not be focused" }',
@@ -303,6 +337,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
             '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
             '$navigated = $false',
             'do {',
+            '  $dialog = [System.Windows.Automation.AutomationElement]::FromHandle($dialogHandle)',
             '  $breadcrumb = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ClassName -eq "ToolbarWindow32" -and $_.Current.AutomationId -eq "1001" } | Select-Object -First 1',
             '  if ($breadcrumb) {',
             '    $name = $breadcrumb.Current.Name',
@@ -326,6 +361,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
     ].join('\n')
     execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
       stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
       timeout: 30_000
     })
   }

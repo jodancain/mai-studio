@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
-import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomation'
+import { chooseNativeFile, focusNativeApp } from '../../../scripts/e2e/regression/systemAutomation'
 import { selectVisibleModel, skipNewProviderModelSetup } from './models'
 import { selectSidebarApp } from './navigation'
 import type { RegressionApp } from './RegressionApp'
@@ -90,6 +90,7 @@ export async function ensureKnowledgeBase(
 
   const readyFiles = page.getByText('Ready', { exact: true })
   if ((await readyFiles.count()) === 0) {
+    focusNativeApp(app.record.platform, app.paths)
     const folder = page.getByRole('button', { name: 'Folder', exact: true })
     if (await folder.isVisible().catch(() => false)) await folder.click()
     else {

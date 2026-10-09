@@ -2,7 +2,7 @@ import { join } from 'node:path'
 
 import { caseDefinition } from '../../../scripts/e2e/regression/cases'
 import { readRun } from '../../../scripts/e2e/regression/state'
-import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomation'
+import { chooseNativeFile, focusNativeApp } from '../../../scripts/e2e/regression/systemAutomation'
 import type { Message } from '../../../src/shared/data/types/message'
 import { startBuiltinAgentTask } from './agents'
 import { customAssistantName, ensureCustomAssistant } from './assistants'
@@ -141,6 +141,7 @@ test(...caseDefinition('A-02'), async ({ app, mainWindow: page }) => {
       .then(() => true)
       .catch(() => false))
   ) {
+    focusNativeApp(app.record.platform, app.paths)
     await page.getByRole('button', { name: 'Add Skill', exact: true }).click()
     await page.getByText('Local import', { exact: true }).click()
     await page.getByRole('button', { name: 'Install from directory', exact: true }).click()

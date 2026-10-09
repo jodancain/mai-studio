@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
-import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomation'
+import { chooseNativeFile, focusNativeApp } from '../../../scripts/e2e/regression/systemAutomation'
 import type { AgentEntity } from '../../../src/shared/data/types/agent'
 import { selectVisibleModel } from './models'
 import { selectSidebarApp } from './navigation'
@@ -81,6 +81,7 @@ export async function createAgent(
 export async function selectAgentWorkspace(app: RegressionApp, page: Page): Promise<void> {
   const current = page.getByRole('button', { name: new RegExp(`No work directory|${app.workspaceName}`), exact: true })
   if ((await current.textContent())?.includes(app.workspaceName)) return
+  focusNativeApp(app.record.platform, app.paths)
   await current.click()
   const existing = page.getByText(app.workspaceName, { exact: true })
   if (await existing.isVisible().catch(() => false)) {
