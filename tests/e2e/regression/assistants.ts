@@ -31,6 +31,7 @@ export async function ensureCustomAssistant(
     await page.getByRole('textbox', { name: 'Description', exact: true }).fill('Cherry Regression Test Assistant')
     await page.locator('[aria-label="Choose avatar"]').click()
     await page.locator('button[aria-label="star-struck"]').first().click()
+    await expect(page.locator('.cherry-emoji-picker-react')).toHaveCount(0)
     await page.locator('[aria-label="Model"]').click()
     await selectVisibleModel(page, model?.id ?? app.config.customProvider.chatModel, model?.providerId)
     await page.getByRole('button', { name: 'Next', exact: true }).click()
