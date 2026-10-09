@@ -1,6 +1,6 @@
 import { caseDefinition } from '../../../scripts/e2e/regression/cases'
 import { readRun } from '../../../scripts/e2e/regression/state'
-import { createAgent, runAgentFileTask, selectAgentWorkspace, startNewAgentTask } from './agents'
+import { createAgent, runAgentFileTask, selectAgentWorkspace, startBuiltinAgentTask } from './agents'
 import { expect, test } from './fixture'
 import { ensureCustomChatProvider, selectVisibleModel } from './models'
 import { dismissOnboarding, selectSidebarApp } from './navigation'
@@ -60,7 +60,7 @@ test(...caseDefinition('A-01'), async ({ app, mainWindow: page }) => {
   test.setTimeout(10 * 60_000)
   const isMaiCore = readRun(app.paths.runState).metadata.task === 'mai-core'
   const modelName = isMaiCore ? 'claude-sonnet-5' : await ensureAgentModel(app, page)
-  await startNewAgentTask(page, 'Cherry Assistant')
+  await startBuiltinAgentTask(page)
 
   const agentView = page.locator('[data-ui="agent.view"]:visible').first()
   const model = agentView

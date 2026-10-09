@@ -5,6 +5,7 @@ import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
 import { chooseNativeFile } from '../../../scripts/e2e/regression/systemAutomation'
+import type { AgentEntity } from '../../../src/shared/data/types/agent'
 import { selectVisibleModel } from './models'
 import { selectSidebarApp } from './navigation'
 import type { RegressionApp } from './RegressionApp'
@@ -18,7 +19,20 @@ export async function selectAgent(page: Page, name: string): Promise<void> {
   await agent.click({ noWaitAfter: true })
 }
 
-export async function startNewAgentTask(page: Page, name: string): Promise<void> {
+export async function startBuiltinAgentTask(page: Page): Promise<void> {
+  const agents = await page.evaluate(async () => {
+    const response = await window.api.dataApi.request({
+      id: 'regression-builtin-agent',
+      method: 'GET',
+      path: '/agents'
+    })
+    if (response.error) throw new Error('Could not read the builtin Agent')
+    return (response.data as { items: AgentEntity[] }).items
+      .filter(({ configuration }) => configuration?.builtin_role === 'assistant')
+      .map(({ id, name }) => ({ id, name }))
+  })
+  expect(agents).toHaveLength(1)
+  const name = agents[0].name
   await selectAgent(page, name)
   const agentView = page.locator('[data-ui="agent.view"]:visible').first()
   const agentHeader = agentView.getByRole('button', { name, exact: true }).first()

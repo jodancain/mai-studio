@@ -265,7 +265,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       'Add-Type -AssemblyName UIAutomationClient',
       'Add-Type -AssemblyName UIAutomationTypes',
       'Add-Type -AssemblyName System.Windows.Forms',
-      `Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); }'`,
+      `Add-Type -TypeDefinition 'using System; using System.Text; using System.Runtime.InteropServices; public static class NativeDialog { [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern IntPtr GetDlgItem(IntPtr dialog, int id); [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, string lParam); [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, StringBuilder lParam); }'`,
       '$root = [System.Windows.Automation.AutomationElement]::RootElement',
       `$processCondition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty, ${electronPid})`,
       '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
@@ -276,23 +276,42 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
       '  if (-not $dialog) { Start-Sleep -Milliseconds 200 }',
       '} while (-not $dialog -and [DateTime]::UtcNow -lt $deadline)',
       'if (-not $dialog) { throw "Native file dialog was not found" }',
-      '$shell = New-Object -ComObject WScript.Shell',
-      `if (-not $shell.AppActivate(${electronPid})) { throw "Native file dialog could not be activated" }`,
-      'Start-Sleep -Milliseconds 300',
+      '$dialogHandle = [IntPtr]$dialog.Current.NativeWindowHandle',
+      '$null = [NativeDialog]::SetForegroundWindow($dialogHandle)',
+      'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) { throw "Native file dialog could not be focused" }',
       ...(isDirectory
         ? [
-            '[System.Windows.Forms.SendKeys]::SendWait("^l")',
-            'Start-Sleep -Milliseconds 200',
-            `[System.Windows.Forms.SendKeys]::SendWait('${escapePowerShell(filePath)}')`,
+            '[System.Windows.Forms.SendKeys]::SendWait("%d")',
+            '$deadline = [DateTime]::UtcNow.AddSeconds(5)',
+            'do {',
+            '  $address = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ClassName -eq "Edit" -and $_.Current.AutomationId -eq "41477" -and $_.Current.HasKeyboardFocus } | Select-Object -First 1',
+            '  if (-not $address) { Start-Sleep -Milliseconds 100 }',
+            '} while (-not $address -and [DateTime]::UtcNow -lt $deadline)',
+            'if (-not $address) { throw "Native folder address input was not focused" }',
+            `$target = '${escapePowerShell(filePath)}'`,
+            '$addressHandle = [IntPtr]$address.Current.NativeWindowHandle',
+            '$null = [NativeDialog]::SendMessage($addressHandle, 0x000C, [IntPtr]::Zero, $target)',
+            '$inputText = [System.Text.StringBuilder]::new(32768)',
+            '$null = [NativeDialog]::SendMessage($addressHandle, 0x000D, [IntPtr]$inputText.Capacity, $inputText)',
+            'if ($inputText.ToString() -cne $target) { throw "Native folder address did not match selected path" }',
+            'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle -or -not $address.Current.HasKeyboardFocus) { throw "Native folder address focus was lost" }',
             '[System.Windows.Forms.SendKeys]::SendWait("{ENTER}")',
-            'Start-Sleep -Milliseconds 750',
-            '$windows = $root.FindAll([System.Windows.Automation.TreeScope]::Children, $processCondition)',
-            '$dialog = $windows | Where-Object { $_.Current.ClassName -eq "#32770" } | Select-Object -Last 1',
-            'if (-not $dialog) { throw "Native folder dialog closed before selection" }',
-            '$acceptHandle = [NativeDialog]::GetDlgItem([IntPtr]$dialog.Current.NativeWindowHandle, 1)',
+            '$deadline = [DateTime]::UtcNow.AddSeconds(10)',
+            '$navigated = $false',
+            'do {',
+            '  $breadcrumb = $dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants, [System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.ClassName -eq "ToolbarWindow32" -and $_.Current.AutomationId -eq "1001" } | Select-Object -First 1',
+            '  if ($breadcrumb) {',
+            '    $name = $breadcrumb.Current.Name',
+            '    $colon = $name.IndexOf(":")',
+            '    if ($colon -ge 0) { $navigated = [string]::Equals($name.Substring($colon + 1).Trim().TrimEnd([char]92), $target.TrimEnd([char]92), [StringComparison]::OrdinalIgnoreCase) }',
+            '  }',
+            '  if (-not $navigated) { Start-Sleep -Milliseconds 100 }',
+            '} while (-not $navigated -and [DateTime]::UtcNow -lt $deadline)',
+            'if (-not $navigated) { throw "Native folder dialog did not navigate to selected path" }',
+            'if ([NativeDialog]::GetForegroundWindow() -ne $dialogHandle) { throw "Native folder dialog focus was lost" }',
+            '$acceptHandle = [NativeDialog]::GetDlgItem($dialogHandle, 1)',
             'if ($acceptHandle -eq [IntPtr]::Zero) { throw "Native folder accept button was not found" }',
-            '$null = [NativeDialog]::SendMessage($acceptHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)',
-            'Start-Sleep -Milliseconds 500'
+            '$null = [NativeDialog]::SendMessage($acceptHandle, 0x00F5, [IntPtr]::Zero, [IntPtr]::Zero)'
           ]
         : [
             '[System.Windows.Forms.SendKeys]::SendWait("%n")',
@@ -303,7 +322,7 @@ export function chooseNativeFile(platform: Platform, paths: RunPaths, candidateP
     ].join('\n')
     execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
       stdio: ['ignore', 'ignore', 'pipe'],
-      timeout: 15_000
+      timeout: 30_000
     })
   }
   return filePath
