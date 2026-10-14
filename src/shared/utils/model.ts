@@ -14,7 +14,7 @@
 import { endpointImpliedCapability, MODALITY, VENDOR_PATTERNS } from '@cherrystudio/provider-registry'
 import { CHERRYAI_PROVIDER_ID, isManagedCherryAiDefaultModel } from '@shared/data/presets/cherryai'
 import type { Model } from '@shared/data/types/model'
-import { MODEL_CAPABILITY, parseUniqueModelId } from '@shared/data/types/model'
+import { isUniqueModelId, MODEL_CAPABILITY, parseUniqueModelId } from '@shared/data/types/model'
 
 /** Check if model has reasoning capability */
 export const isReasoningModel = (model: Model): boolean =>
@@ -312,6 +312,12 @@ export const isClaude46SeriesModel = (model: Model): boolean => {
 export const isClaude47SeriesModel = (model: Model): boolean => {
   const id = getLowerBaseModelName(getRawModelId(model), '/')
   return /(?:anthropic\.)?claude-opus-4[.-]7(?:[@\-:][\w\-:]+)?$/i.test(id)
+}
+
+/** Opus 5.5 always thinks and rejects forced tool calls and custom sampling. */
+export const isClaudeOpus55Model = (model: { id: string; apiModelId?: string }): boolean => {
+  const rawId = model.apiModelId || (isUniqueModelId(model.id) ? parseUniqueModelId(model.id).modelId : model.id)
+  return /^(?:anthropic\.)?claude-opus-5[.-]5(?:[@\-:][\w\-:]+)?$/i.test(getLowerBaseModelName(rawId, '/'))
 }
 
 /** Check if model is Claude 4.5 reasoning */

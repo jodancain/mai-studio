@@ -548,6 +548,107 @@ describe('buildAgentParams provider resolution', () => {
 })
 
 describe('buildAgentParams standard model parameters', () => {
+  it.each([
+    ['mai', 'enabled', true],
+    ['mai', 'disabled', true],
+    ['anthropic', 'enabled', true],
+    ['anthropic', 'disabled', true],
+    ['mai', 'enabled', false],
+    ['mai', 'disabled', false],
+    ['anthropic', 'enabled', false],
+    ['anthropic', 'disabled', false]
+  ] as const)(
+    'enforces Opus 5.5 on final %s with stale %s overrides and managed context %s',
+    async (providerId, thinkingType, managed) => {
+      let outgoing: Record<string, any> = {}
+      let outgoingHeaders = new Headers()
+      resolveProviderAiSdkConfigMock.mockResolvedValue({
+        config: {
+          providerId: 'anthropic',
+          providerSettings: {
+            apiKey: 'sk-test',
+            baseURL: 'https://provider.test/v1',
+            fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
+              outgoing = JSON.parse(init!.body as string)
+              outgoingHeaders = new Headers(init?.headers)
+              return Response.json({
+                id: 'msg-opus55',
+                type: 'message',
+                role: 'assistant',
+                model: 'claude-opus-5-5',
+                content: [{ type: 'text', text: 'OK' }],
+                stop_reason: 'end_turn',
+                stop_sequence: null,
+                usage: { input_tokens: 1, output_tokens: 1 }
+              })
+            }
+          }
+        },
+        credentialReceipt: { attribution: 'unknown' }
+      })
+      const provider = makeProvider({
+        id: providerId,
+        presetProviderId: providerId,
+        defaultChatEndpoint: ENDPOINT_TYPE.ANTHROPIC_MESSAGES,
+        endpointConfigs: { [ENDPOINT_TYPE.ANTHROPIC_MESSAGES]: { adapterFamily: 'anthropic' } }
+      })
+      const model = makeModel({
+        id: `${providerId}::claude-opus-5-5`,
+        providerId,
+        apiModelId: 'claude-opus-5-5',
+        capabilities: [MODEL_CAPABILITY.REASONING, MODEL_CAPABILITY.FUNCTION_CALL]
+      })
+      const result = await buildAgentParams({
+        request: {
+          conversation: CONVERSATION,
+          contextOwner: managed ? undefined : 'caller',
+          requestOptions: { headers: { 'anthropic-beta': 'caller-beta' } },
+          reasoningEffort: 'none',
+          callOverrides: {
+            maxOutputTokens: 64,
+            temperature: 0.2,
+            topP: 0.8,
+            topK: 4,
+            toolChoice: { type: 'tool', toolName: 'echo' },
+            tools: { echo: { inputSchema: z.object({ text: z.string() }) } },
+            providerOptions: { anthropic: { thinking: { type: thinkingType, budgetTokens: 1024 }, effort: 'xhigh' } }
+          }
+        },
+        signal: undefined,
+        provider,
+        model,
+        assistant: makeAssistant({
+          settings: {
+            customParameters: [
+              { name: 'top_p', type: 'json', value: '0.8' },
+              { name: 'top_k', type: 'json', value: '4' },
+              { name: 'thinking', type: 'json', value: '{"type":"disabled"}' }
+            ]
+          }
+        })
+      })
+      const response = await aiCoreGenerateText<AppProviderSettingsMap>(
+        result.sdkConfig.providerId,
+        result.sdkConfig.providerSettings,
+        { ...result.options, model: result.sdkConfig.modelId, tools: result.tools, prompt: 'Reply OK.' }
+      )
+      expect(response.text).toBe('OK')
+      expect(outgoing.model).toBe('claude-opus-5-5')
+      expect(outgoing.max_tokens).toBe(64)
+      expect(outgoing.thinking).toEqual(
+        managed ? { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } } : { type: 'adaptive' }
+      )
+      const betas = outgoingHeaders.get('anthropic-beta')?.split(',') ?? []
+      expect(betas).toContain('caller-beta')
+      expect(betas.includes('thinking-binding-controls-2026-08-01')).toBe(Boolean(managed))
+      expect(outgoing.output_config.effort).toBe('xhigh')
+      expect(outgoing.tool_choice).toEqual({ type: 'auto' })
+      expect(outgoing).not.toHaveProperty('temperature')
+      expect(outgoing).not.toHaveProperty('top_p')
+      expect(outgoing).not.toHaveProperty('top_k')
+    }
+  )
+
   function makeSetup(endpointType: EndpointType, maxOutputTokens?: number) {
     const providerId = endpointType === ENDPOINT_TYPE.ANTHROPIC_MESSAGES ? 'anthropic' : 'openai-compatible'
     resolveProviderAiSdkConfigMock.mockResolvedValue({

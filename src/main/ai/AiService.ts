@@ -52,6 +52,7 @@ import type { Provider } from '@shared/data/types/provider'
 import type { Base64String, CreateInternalEntryIpcParams, UrlString } from '@shared/types/file'
 import type { ModelApiProbeKind } from '@shared/types/modelApiDiagnostics'
 import {
+  isClaudeOpus55Model,
   isEmbeddingModel,
   isFunctionCallingModel,
   isGenerateImageModel,
@@ -1437,8 +1438,8 @@ export class AiService extends BaseService {
     const probeRequest = { ...request, requestOptions: { ...request.requestOptions, signal, maxRetries: 0 } }
     try {
       let probe: Promise<unknown>
-      if (options?.kind === 'streaming' || options?.kind === 'tools') {
-        probe = this.checkTextProtocol(probeRequest, options.kind, signal)
+      if (options?.kind === 'streaming' || options?.kind === 'tools' || isClaudeOpus55Model(model)) {
+        probe = this.checkTextProtocol(probeRequest, options?.kind ?? 'conversation', signal)
       } else if (isOllamaProvider(provider) && !options?.chatOnly) {
         probe = probeOllamaModel(provider, model.apiModelId, signal, request.apiKeyOverride)
       } else if (!options?.chatOnly && isRerankModel(model)) {
@@ -1546,13 +1547,15 @@ export class AiService extends BaseService {
     }
   }
 
-  private async checkTextProtocol(request: AsInProcess<AiRequest>, kind: 'streaming' | 'tools', signal: AbortSignal) {
+  private async checkTextProtocol(request: AsInProcess<AiRequest>, kind: ModelApiProbeKind, signal: AbortSignal) {
+    const { model: requestedModel } = this.getProviderAndModel(request)
+    const alwaysThinking = isClaudeOpus55Model(requestedModel)
     const prepared = await this.buildAgentParamsFor(
       {
         ...request,
         conversation: { id: `check:${randomUUID()}` },
         contextOwner: 'caller',
-        reasoningEffort: 'none',
+        reasoningEffort: alwaysThinking ? 'low' : 'none',
         callOverrides: { maxOutputTokens: 64 }
       },
       signal
@@ -1590,14 +1593,37 @@ export class AiService extends BaseService {
       )
       let text = ''
       let finished = false
+      let budgetExhausted = false
       for await (const part of result.fullStream) {
         signal.throwIfAborted()
         if (part.type === 'error') throw part.error
         if (part.type === 'abort') throw new Error('Model health check stream aborted')
         if (part.type === 'text-delta') text += part.text
-        if (part.type === 'finish') finished = ['stop', 'length'].includes(part.finishReason)
+        if (part.type === 'finish') {
+          finished = ['stop', 'length'].includes(part.finishReason)
+          budgetExhausted = part.finishReason === 'length'
+        }
+      }
+      if (alwaysThinking && budgetExhausted) {
+        throw new Error('Model health check exhausted its 64-token output budget; manual verification required')
       }
       if (!finished || !text.trim()) throw new Error('Model health check stream did not complete with text')
+      return
+    }
+    if (kind === 'conversation') {
+      const result = await aiCoreGenerateText<AppProviderSettingsMap>(
+        sdkConfig.providerId,
+        sdkConfig.providerSettings,
+        params,
+        plugins
+      )
+      signal.throwIfAborted()
+      if (alwaysThinking && result.finishReason === 'length') {
+        throw new Error('Model health check exhausted its 64-token output budget; manual verification required')
+      }
+      if (!['stop', 'length'].includes(result.finishReason) || !result.text.trim()) {
+        throw new Error('Model health check did not complete with text')
+      }
       return
     }
     const inputSchema = z.strictObject({ value: z.literal('ok') })
@@ -1610,11 +1636,14 @@ export class AiService extends BaseService {
         tools: {
           diagnostic_echo: { description: 'Validate a diagnostic argument without executing any action.', inputSchema }
         },
-        toolChoice: { type: 'tool', toolName: 'diagnostic_echo' }
+        toolChoice: alwaysThinking ? 'auto' : { type: 'tool', toolName: 'diagnostic_echo' }
       },
       plugins
     )
     signal.throwIfAborted()
+    if (alwaysThinking && result.finishReason === 'length') {
+      throw new Error('Model health check exhausted its 64-token output budget; manual verification required')
+    }
     if (
       result.finishReason !== 'tool-calls' ||
       result.toolCalls.length !== 1 ||

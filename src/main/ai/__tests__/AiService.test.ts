@@ -22,6 +22,8 @@ type AiServicePrivate = {
 }
 
 const mockGenerateImage = vi.fn()
+const mockCoreGenerateText = vi.fn()
+const mockCoreStreamText = vi.fn()
 const mockAgentGenerate = vi.fn()
 const mockCreateAgent = vi.fn()
 const mockRerank = vi.fn()
@@ -162,6 +164,8 @@ vi.mock('@main/data/services/MessageService', () => ({
 vi.mock('@cherrystudio/ai-core', () => ({
   createAgent: (...args: unknown[]) => mockCreateAgent(...args),
   definePlugin: (plugin: unknown) => plugin,
+  generateText: (...args: unknown[]) => mockCoreGenerateText(...args),
+  streamText: (...args: unknown[]) => mockCoreStreamText(...args),
   embedMany: async (...args: unknown[]) => {
     const result = await mockEmbedMany(...args)
     const params = args[2] as { onProviderCall?: (event: unknown) => void }
@@ -1886,6 +1890,166 @@ describe('AiService tool approval', () => {
         reasoningEffort: 'none'
       })
     )
+  })
+
+  describe('Opus 5.5 health-check contracts', () => {
+    let service: InstanceType<typeof AiService>
+    let response: {
+      text: string
+      finishReason: string
+      toolCalls: Array<{ toolName: string; input: unknown }>
+    }
+    let streamParts: Array<Record<string, unknown>>
+
+    beforeEach(() => {
+      service = createService()
+      const provider = makeProvider({ id: 'test-provider' })
+      const model = {
+        id: 'test-provider::claude-opus-5-5',
+        providerId: 'test-provider',
+        apiModelId: 'claude-opus-5-5',
+        name: 'Claude Opus 5.5',
+        capabilities: [MODEL_CAPABILITY.REASONING],
+        supportsStreaming: true,
+        isEnabled: true,
+        isHidden: false
+      }
+      mockModelGetByKey.mockReturnValue(model)
+      mockCoreGenerateText.mockReset()
+      mockCoreStreamText.mockReset()
+      response = { text: 'OK', finishReason: 'stop', toolCalls: [] }
+      streamParts = [
+        { type: 'reasoning-delta', text: 'thinking' },
+        { type: 'text-delta', text: 'OK' },
+        { type: 'finish', finishReason: 'stop' }
+      ]
+      vi.spyOn(service as unknown as AiServicePrivate, 'buildAgentParamsFor').mockImplementation(async (...args) => {
+        const request = args[0] as {
+          reasoningEffort: string
+          callOverrides: { maxOutputTokens: number }
+          requestOptions: { maxRetries: number }
+        }
+        expect(request.reasoningEffort).toBe('low')
+        expect(request.callOverrides.maxOutputTokens).toBe(64)
+        expect(request.requestOptions.maxRetries).toBe(0)
+        return {
+          sdkConfig: { providerId: 'anthropic', providerSettings: {}, modelId: model.apiModelId },
+          provider,
+          model,
+          credentialReceipt: { attribution: 'explicit', id: 'key-a', masked: 'sk-a****aaaa' },
+          plugins: [],
+          options: { providerOptions: { anthropic: { effort: request.reasoningEffort } } }
+        }
+      })
+      const validateBudget = (params: { maxOutputTokens: number; maxRetries: number }) => {
+        expect(params.maxOutputTokens).toBe(64)
+        expect(params.maxRetries).toBe(0)
+      }
+      mockCoreGenerateText.mockImplementation(async (_provider, _settings, params) => {
+        validateBudget(params)
+        if (params.tools) {
+          expect(params.toolChoice).toBe('auto')
+          expect(params.prompt).toContain('diagnostic_echo')
+          expect(params.tools.diagnostic_echo.execute).toBeUndefined()
+          expect(params.tools.diagnostic_echo.inputSchema.safeParse({ value: 'ok' }).success).toBe(true)
+          expect(params.tools.diagnostic_echo.inputSchema.safeParse({ value: 'wrong' }).success).toBe(false)
+        }
+        return response
+      })
+      mockCoreStreamText.mockImplementation(async (_provider, _settings, params) => {
+        validateBudget(params)
+        return {
+          fullStream: (async function* () {
+            yield* streamParts
+          })()
+        }
+      })
+    })
+
+    it('accepts a bounded conversation with actual response text', async () => {
+      const result = await service.checkModel({ uniqueModelId: 'test-provider::claude-opus-5-5' })
+      expect(result.latency).toBeGreaterThanOrEqual(0)
+      expect(mockCoreGenerateText).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+      ['conversation', ''],
+      ['conversation', 'O'],
+      ['tools', '']
+    ] as const)('keeps a budget-exhausted %s response unverified without retrying', async (kind, text) => {
+      response = { text, finishReason: 'length', toolCalls: [] }
+      await expect(
+        service.checkModel({ uniqueModelId: 'test-provider::claude-opus-5-5' }, { chatOnly: true, kind })
+      ).rejects.toThrow('64-token output budget; manual verification required')
+      expect(mockCoreGenerateText).toHaveBeenCalledOnce()
+    })
+
+    it.each([
+      { text: '', finishReason: 'stop', toolCalls: [] },
+      { text: 'I cannot answer.', finishReason: 'content-filter', toolCalls: [] }
+    ])('does not pass an empty or refused conversation', async (result) => {
+      response = result
+      await expect(service.checkModel({ uniqueModelId: 'test-provider::claude-opus-5-5' })).rejects.toThrow(
+        'did not complete with text'
+      )
+    })
+
+    it('accepts auto tool choice only after the diagnostic tool is returned with valid input', async () => {
+      response = {
+        text: '',
+        finishReason: 'tool-calls',
+        toolCalls: [{ toolName: 'diagnostic_echo', input: { value: 'ok' } }]
+      }
+      const result = await service.checkModel(
+        { uniqueModelId: 'test-provider::claude-opus-5-5' },
+        { chatOnly: true, kind: 'tools' }
+      )
+      expect(result.latency).toBeGreaterThanOrEqual(0)
+    })
+
+    it.each([
+      { text: 'OK', finishReason: 'stop', toolCalls: [] },
+      { text: '', finishReason: 'tool-calls', toolCalls: [{ toolName: 'other', input: { value: 'ok' } }] },
+      { text: '', finishReason: 'tool-calls', toolCalls: [{ toolName: 'diagnostic_echo', input: { value: 'wrong' } }] },
+      {
+        text: '',
+        finishReason: 'tool-calls',
+        toolCalls: [{ toolName: 'diagnostic_echo', input: { value: 'ok', unexpected: true } }]
+      },
+      {
+        text: '',
+        finishReason: 'tool-calls',
+        toolCalls: [
+          { toolName: 'diagnostic_echo', input: { value: 'ok' } },
+          { toolName: 'diagnostic_echo', input: { value: 'ok' } }
+        ]
+      }
+    ])('rejects a tool response without one valid diagnostic call', async (result) => {
+      response = result
+      await expect(
+        service.checkModel({ uniqueModelId: 'test-provider::claude-opus-5-5' }, { chatOnly: true, kind: 'tools' })
+      ).rejects.toThrow('invalid diagnostic tool call')
+    })
+
+    it('reads response text after streamed thinking', async () => {
+      const result = await service.checkModel(
+        { uniqueModelId: 'test-provider::claude-opus-5-5' },
+        { chatOnly: true, kind: 'streaming' }
+      )
+      expect(result.latency).toBeGreaterThanOrEqual(0)
+    })
+
+    it.each(['', 'O'])('keeps a truncated stream unverified within the original token budget', async (text) => {
+      streamParts = [
+        { type: 'reasoning-delta', text: 'thinking' },
+        { type: 'text-delta', text },
+        { type: 'finish', finishReason: 'length' }
+      ]
+      await expect(
+        service.checkModel({ uniqueModelId: 'test-provider::claude-opus-5-5' }, { chatOnly: true, kind: 'streaming' })
+      ).rejects.toThrow('64-token output budget; manual verification required')
+      expect(mockCoreStreamText).toHaveBeenCalledOnce()
+    })
   })
 
   it('checks embedding models with the normal embedding path', async () => {

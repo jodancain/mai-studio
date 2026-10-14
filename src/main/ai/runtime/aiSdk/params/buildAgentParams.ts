@@ -26,7 +26,7 @@ import {
 } from '@shared/data/types/assistant'
 import { ENDPOINT_TYPE, type EndpointType, type Model } from '@shared/data/types/model'
 import type { Provider } from '@shared/data/types/provider'
-import { isFunctionCallingModel } from '@shared/utils/model'
+import { isClaudeOpus55Model, isFunctionCallingModel } from '@shared/utils/model'
 import { finalizeWebToolRoutes, resolveWebToolRoutes, type WebToolRoutes } from '@shared/utils/provider'
 import { getWebSearchFallbackProviderIds, resolveReadyWebSearchProvider } from '@shared/utils/webSearch'
 
@@ -71,7 +71,7 @@ import { assembleSystemPrompt } from './assembleSystemPrompt'
 import { buildTelemetry } from './buildTelemetry'
 import { resolveCapabilities } from './capabilities'
 import { collectFromFeatures } from './collectFromFeatures'
-import { createCustomParamsFetch, selectCustomBodyParameters } from './customParamsFetch'
+import { createClaudeOpus55Fetch, createCustomParamsFetch, selectCustomBodyParameters } from './customParamsFetch'
 import type { RequestFeature } from './feature'
 import { hasAnchorRow } from './features/contextBuild'
 import { INTERNAL_FEATURES } from './features/internalFeatures'
@@ -226,6 +226,13 @@ export async function buildAgentParams(input: BuildAgentParamsInput): Promise<Bu
     model,
     endpointType
   )
+  if (sdkConfig.providerId === 'anthropic' && isClaudeOpus55Model(model)) {
+    sdkConfig.providerSettings.fetch = createClaudeOpus55Fetch(
+      sdkConfig.providerSettings.fetch ?? globalThis.fetch,
+      requestedMaxOutputTokens,
+      request.contextOwner !== 'caller'
+    )
+  }
   const requestedReasoningSelection = request.reasoningEffort ?? assistant?.settings.reasoning_effort ?? 'default'
   const reasoningSelection = normalizeRequestedSelection(requestedReasoningSelection, invocationModel)
   const reasoning = resolveReasoningInvocation({
@@ -638,6 +645,15 @@ function buildAgentOptions(
     overridden.providerOptions,
     request.fastMode === true
   )
+  if (sdkConfig.providerId === 'anthropic' && isClaudeOpus55Model(model)) {
+    const current = effectiveProviderOptions[sdkConfig.providerOptionsKey] ?? {}
+    const thinking = current.thinking as { display?: unknown } | undefined
+    effectiveProviderOptions[sdkConfig.providerOptionsKey] = {
+      ...current,
+      thinking: { type: 'adaptive', ...(typeof thinking?.display === 'string' && { display: thinking.display }) },
+      effort: ['low', 'medium', 'high', 'xhigh', 'max'].includes(String(current.effort)) ? current.effort : 'medium'
+    }
+  }
   // A namespace that ended up empty carries nothing; emitting it would ship a bare
   // `providerOptions` for callers that opted into nothing.
   const hasProviderOptions = Object.values(effectiveProviderOptions).some((ns) => Object.keys(ns ?? {}).length > 0)

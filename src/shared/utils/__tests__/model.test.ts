@@ -6,6 +6,7 @@ import {
   deriveModelGroupName,
   getRawModelId,
   isAudioModel,
+  isClaudeOpus55Model,
   isEmbeddingModel,
   isFunctionCallingModel,
   isGatewayRoutableModel,
@@ -32,6 +33,24 @@ const createModel = (capabilities: Model['capabilities'] = []): Model => ({
 })
 
 describe('shared model capability helpers', () => {
+  it.each([
+    ['claude-opus-5-5', true],
+    ['mai::claude-opus-5-5', true],
+    ['anthropic/claude-opus-5-5', true],
+    ['anthropic.claude-opus-5-5-v1:0', true],
+    ['claude-opus-5.5', true],
+    ['claude-opus-5-50', false],
+    ['claude-sonnet-5-5', false],
+    ['claude-opus-5', false]
+  ])('recognizes the Opus 5.5 request contract for %s only', (id, expected) => {
+    expect(isClaudeOpus55Model({ id })).toBe(expected)
+  })
+
+  it('uses the serving API model id rather than a display or stored alias', () => {
+    expect(isClaudeOpus55Model({ id: 'mai::alias', apiModelId: 'claude-opus-5-5' })).toBe(true)
+    expect(isClaudeOpus55Model({ id: 'mai::claude-opus-5-5', apiModelId: 'claude-opus-5' })).toBe(false)
+  })
+
   it.each([
     [undefined, 'gpt-4o'],
     ['', 'gpt-4o'],
