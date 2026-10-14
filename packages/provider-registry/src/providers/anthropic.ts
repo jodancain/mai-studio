@@ -1,6 +1,7 @@
 import { defineProvider } from './types'
 
 const webToolModels = [
+  'claude-opus-5-5',
   'claude-opus-4',
   'claude-sonnet-4',
   'claude-haiku-4',
@@ -20,6 +21,18 @@ export default defineProvider({
       baseUrl: 'https://api.anthropic.com'
     }
   },
+  overrides: [
+    {
+      modelId: 'claude-opus-5-5',
+      apiModelId: 'claude-opus-5-5',
+      endpointTypes: ['anthropic-messages'],
+      parameterSupport: {
+        temperature: { supported: false },
+        topP: { supported: false },
+        topK: { supported: false }
+      }
+    }
+  ],
   serverTools: [
     { id: 'web-search', modelScope: 'model-dependent', modelIdPrefixes: webToolModels },
     { id: 'url-context', modelScope: 'model-dependent', modelIdPrefixes: webToolModels }

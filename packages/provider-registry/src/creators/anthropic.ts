@@ -7,11 +7,33 @@ export default defineCreator({
   fetchModels: anthropicModels(),
   modelsDevProviders: ['anthropic'],
   idPrefixes: ['claude'],
+  models: [
+    {
+      id: 'claude-opus-5-5',
+      name: 'Claude Opus 5.5',
+      family: 'claude-opus',
+      capabilities: ['function-call', 'reasoning', 'image-recognition', 'structured-output', 'file-input'],
+      inputModalities: ['text', 'image'],
+      outputModalities: ['text'],
+      contextWindow: 1_000_000,
+      maxOutputTokens: 128_000,
+      reasoning: {
+        controls: [{ kind: 'effort', values: ['low', 'medium', 'high', 'xhigh', 'max'], default: 'medium' }]
+      }
+    }
+  ],
   reasoningFamilies: [
     // Fable always reasons. The API rejects attempts to disable thinking.
     {
       pattern: '^(?:anthropic\\.)?claude-fable',
       effort: ['low', 'medium', 'high', 'max'],
+      toggle: false,
+      wireDialect: 'effort'
+    },
+    // Opus 5.5 rejects disabled thinking and manual budgets; effort is its only depth control.
+    {
+      pattern: '^(?:anthropic\\.)?claude-opus-5[.-]5$',
+      effort: ['low', 'medium', 'high', 'xhigh', 'max'],
       toggle: false,
       wireDialect: 'effort'
     },

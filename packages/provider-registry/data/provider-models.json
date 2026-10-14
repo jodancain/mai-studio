@@ -121,6 +121,29 @@
       "providerId": "302ai"
     },
     {
+      "apiModelId": "claude-opus-5-5",
+      "modelId": "claude-opus-5-5",
+      "pricing": {
+        "cacheRead": {
+          "currency": "USD",
+          "perMillionTokens": 0.2
+        },
+        "cacheWrite": {
+          "currency": "USD",
+          "perMillionTokens": 5
+        },
+        "input": {
+          "currency": "USD",
+          "perMillionTokens": 4
+        },
+        "output": {
+          "currency": "USD",
+          "perMillionTokens": 20
+        }
+      },
+      "providerId": "302ai"
+    },
+    {
       "apiModelId": "claude-sonnet-4-5-20250929-thinking",
       "modelId": "claude-sonnet-4-5",
       "pricing": {
@@ -1956,6 +1979,23 @@
       "providerId": "aihubmix"
     },
     {
+      "apiModelId": "claude-opus-5-5",
+      "endpointTypes": ["anthropic-messages"],
+      "modelId": "claude-opus-5-5",
+      "parameterSupport": {
+        "temperature": {
+          "supported": false
+        },
+        "topK": {
+          "supported": false
+        },
+        "topP": {
+          "supported": false
+        }
+      },
+      "providerId": "anthropic"
+    },
+    {
       "apiModelId": "global.anthropic.claude-fable-5",
       "modelId": "claude-fable-5",
       "pricing": {
@@ -3774,6 +3814,29 @@
         "output": {
           "currency": "USD",
           "perMillionTokens": 25
+        }
+      },
+      "providerId": "copilot"
+    },
+    {
+      "apiModelId": "claude-opus-5.5",
+      "modelId": "claude-opus-5-5",
+      "pricing": {
+        "cacheRead": {
+          "currency": "USD",
+          "perMillionTokens": 0.2
+        },
+        "cacheWrite": {
+          "currency": "USD",
+          "perMillionTokens": 5
+        },
+        "input": {
+          "currency": "USD",
+          "perMillionTokens": 4
+        },
+        "output": {
+          "currency": "USD",
+          "perMillionTokens": 20
         }
       },
       "providerId": "copilot"
@@ -12007,6 +12070,29 @@
       "providerId": "gateway"
     },
     {
+      "apiModelId": "anthropic/claude-opus-5.5",
+      "modelId": "claude-opus-5-5",
+      "pricing": {
+        "cacheRead": {
+          "currency": "USD",
+          "perMillionTokens": 0.2
+        },
+        "cacheWrite": {
+          "currency": "USD",
+          "perMillionTokens": 5
+        },
+        "input": {
+          "currency": "USD",
+          "perMillionTokens": 4
+        },
+        "output": {
+          "currency": "USD",
+          "perMillionTokens": 20
+        }
+      },
+      "providerId": "gateway"
+    },
+    {
       "apiModelId": "anthropic/claude-opus-5-fast",
       "modelId": "claude-opus-5-fast",
       "pricing": {
@@ -17770,6 +17856,23 @@
       "apiModelId": "claude-opus-5",
       "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
       "modelId": "claude-opus-5",
+      "providerId": "mai"
+    },
+    {
+      "apiModelId": "claude-opus-5-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-5-5",
+      "parameterSupport": {
+        "temperature": {
+          "supported": false
+        },
+        "topK": {
+          "supported": false
+        },
+        "topP": {
+          "supported": false
+        }
+      },
       "providerId": "mai"
     },
     {
@@ -23584,6 +23687,44 @@
             ],
             "defaultEffort": "high",
             "supportedEfforts": ["max", "xhigh", "high", "medium", "low", "none"]
+          }
+        }
+      }
+    },
+    {
+      "apiModelId": "anthropic/claude-opus-5.5",
+      "modelId": "claude-opus-5-5",
+      "pricing": {
+        "cacheRead": {
+          "currency": "USD",
+          "perMillionTokens": 0.2
+        },
+        "cacheWrite": {
+          "currency": "USD",
+          "perMillionTokens": 5
+        },
+        "input": {
+          "currency": "USD",
+          "perMillionTokens": 4
+        },
+        "output": {
+          "currency": "USD",
+          "perMillionTokens": 20
+        }
+      },
+      "providerId": "openrouter",
+      "reasoningContracts": {
+        "openai-chat-completions": {
+          "support": {
+            "controls": [
+              {
+                "default": "high",
+                "kind": "effort",
+                "values": ["max", "xhigh", "high", "medium", "low"]
+              }
+            ],
+            "defaultEffort": "high",
+            "supportedEfforts": ["max", "xhigh", "high", "medium", "low"]
           }
         }
       }
@@ -39832,6 +39973,29 @@
       "providerId": "vertexai"
     },
     {
+      "apiModelId": "claude-opus-5-5@default",
+      "modelId": "claude-opus-5-5",
+      "pricing": {
+        "cacheRead": {
+          "currency": "USD",
+          "perMillionTokens": 0.2
+        },
+        "cacheWrite": {
+          "currency": "USD",
+          "perMillionTokens": 5
+        },
+        "input": {
+          "currency": "USD",
+          "perMillionTokens": 4
+        },
+        "output": {
+          "currency": "USD",
+          "perMillionTokens": 20
+        }
+      },
+      "providerId": "vertexai"
+    },
+    {
       "apiModelId": "claude-sonnet-4@20250514",
       "modelId": "claude-sonnet-4",
       "pricing": {
@@ -40817,5 +40981,5 @@
       "providerId": "zhipu"
     }
   ],
-  "version": "b89add69a6413478"
+  "version": "29543fc2eeb49ada"
 }

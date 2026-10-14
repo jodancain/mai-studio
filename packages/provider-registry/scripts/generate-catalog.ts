@@ -29,11 +29,13 @@ import { PROVIDERS } from '../src/providers'
 import type { ProviderEntry } from '../src/providers/types'
 import { SERVER_TOOL, type ServerTool } from '../src/schemas/enums'
 import type { ReasoningFamilyRule } from '../src/schemas/model'
-import { ReasoningFamilyRuleSchema } from '../src/schemas/model'
+import { ModelListSchema, ReasoningFamilyRuleSchema } from '../src/schemas/model'
+import { ProviderModelListSchema } from '../src/schemas/provider-models'
 import { stripHostReprefix } from '../src/utils/normalize'
 import { deriveLegacyReasoningFields } from '../src/utils/reasoningControls'
 import { getServiceTierCatalogErrors } from '../src/utils/serviceTierCatalog'
 import { canonOf, isModelsDevRoutingAlias, prefixHit, splitOverrideWireId } from './canonicalize'
+import { applyModelScope, applyServerToolModelScope, type ServerToolModels } from './modelScope'
 import {
   type CherryMeta,
   finalizeMeta,
@@ -158,8 +160,13 @@ function collectProviderServerToolModels(
 }
 
 /** Runtime artifact for provider-specific model-dependent server-tool eligibility. */
-function buildServerToolModelsGen(models: Map<string, any>): string {
-  const modelIds = collectProviderServerToolModels(models)
+function buildServerToolModelsGen(
+  models: Map<string, any>,
+  baseline?: ServerToolModels,
+  scope?: ReadonlySet<string>
+): string {
+  const generated = collectProviderServerToolModels(models)
+  const modelIds = baseline && scope ? applyServerToolModelScope(baseline, generated, scope) : generated
   return [
     '/**',
     ' * GENERATED FILE — DO NOT EDIT.',
@@ -660,7 +667,28 @@ void (async () => {
 
   const index = buildIndex(md, or)
   const claimed = await assignCreators(index, md)
-  const models = buildModels(index, claimed)
+  let models = buildModels(index, claimed)
+  let pm = buildProviderModels(md, orModels, orImageModels, new Set(models.keys()))
+  const baselineDir = process.env.CATALOG_BASELINE_DIR
+  let baselineServerTools: ServerToolModels | undefined
+  const modelIds = new Set((process.env.CATALOG_MODEL_IDS ?? '').split(',').filter(Boolean).map(canonOf))
+  if (Boolean(baselineDir) !== Boolean(modelIds.size)) {
+    throw new Error('CATALOG_BASELINE_DIR and CATALOG_MODEL_IDS must be supplied together')
+  }
+  if (baselineDir) {
+    baselineServerTools = JSON.parse(fs.readFileSync(path.join(baselineDir, 'server-tool-models.json'), 'utf8'))
+    const baselineModels = JSON.parse(fs.readFileSync(path.join(baselineDir, 'models.json'), 'utf8'))
+    const baselineOverrides = JSON.parse(fs.readFileSync(path.join(baselineDir, 'provider-models.json'), 'utf8'))
+    ModelListSchema.parse(baselineModels)
+    ProviderModelListSchema.parse(baselineOverrides)
+    const scoped = applyModelScope(
+      { models: baselineModels.models, overrides: baselineOverrides.overrides },
+      { models: [...models.values()], overrides: pm.overrides },
+      modelIds
+    )
+    models = new Map(scoped.models.map((model) => [model.id, model]))
+    pm = { overrides: scoped.overrides }
+  }
 
   const unassigned = [...index.keys()].filter((k) => !claimed.has(k))
   console.log(`creators: ${CREATORS.length}`)
@@ -688,7 +716,7 @@ void (async () => {
     return
   }
 
-  const serverToolModelsGen = buildServerToolModelsGen(models)
+  const serverToolModelsGen = buildServerToolModelsGen(models, baselineServerTools, modelIds)
   const list = [...models.values()]
     .sort((a, b) => {
       const aKey = `${a.ownedBy ?? ''}\0${a.id}`
@@ -702,7 +730,6 @@ void (async () => {
       return { ...rest, ...(metadata ? { metadata } : {}) }
     })
   const providers = buildProviders()
-  const pm = buildProviderModels(md, orModels, orImageModels, new Set(models.keys()))
   const serviceTierErrors = getServiceTierCatalogErrors(providers, pm.overrides)
   if (serviceTierErrors.length > 0) {
     throw new Error(`Invalid service tier catalog:\n${serviceTierErrors.join('\n')}`)
