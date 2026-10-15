@@ -37,6 +37,7 @@ import { type SelectionEventSchemas, selectionRequestSchemas } from './selection
 import { skillRequestSchemas } from './skill'
 import { type SystemEventSchemas, systemRequestSchemas } from './system'
 import { type TabEventSchemas, tabRequestSchemas } from './tab'
+import { type TerminalEventSchemas, terminalRequestSchemas } from './terminal'
 import { type TranslateEventSchemas, translateRequestSchemas } from './translate'
 import { trashRequestSchemas } from './trash'
 import { webSearchRequestSchemas } from './webSearch'
@@ -89,6 +90,7 @@ export const ipcRequestSchemas = {
   ...skillRequestSchemas,
   ...systemRequestSchemas,
   ...tabRequestSchemas,
+  ...terminalRequestSchemas,
   ...translateRequestSchemas,
   ...trashRequestSchemas,
   ...webSearchRequestSchemas,
@@ -124,6 +126,7 @@ export type IpcEventSchemas = AgentGroupChatEventSchemas &
   SelectionEventSchemas &
   SystemEventSchemas &
   TabEventSchemas &
+  TerminalEventSchemas &
   TranslateEventSchemas &
   WindowEventSchemas
 /** Union of all declared event names. */

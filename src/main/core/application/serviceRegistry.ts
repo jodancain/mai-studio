@@ -70,6 +70,7 @@ import { SentryLogService } from '@main/services/SentryLogService'
 import { ShortcutService } from '@main/services/ShortcutService'
 import { StorageMonitorService } from '@main/services/StorageMonitorService'
 import { SubWindowService } from '@main/services/SubWindowService'
+import { TerminalService } from '@main/services/terminal'
 import { ThemeService } from '@main/services/ThemeService'
 import { TrashService } from '@main/services/trash'
 import { TrayService } from '@main/services/TrayService'
@@ -128,6 +129,7 @@ export const services = {
   PowerService,
   SelectionService,
   ShortcutService,
+  TerminalService,
   ThemeService,
   TraceStorageService,
   NodeTraceService,

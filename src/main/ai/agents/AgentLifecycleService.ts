@@ -431,6 +431,7 @@ export class AgentLifecycleService extends BaseService {
     deliveryResults: AgentSessionMessageEntity[],
     retrySessionIds: string[] = []
   ): Promise<void> {
+    application.get('TerminalService').disposeMany(sessionIds)
     const closed = await Promise.allSettled(
       sessionIds.map(async (sessionId) => {
         const runtime = application.get('AgentSessionRuntimeService')

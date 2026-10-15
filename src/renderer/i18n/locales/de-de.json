@@ -218,6 +218,7 @@
   "agent.right_pane.tabs.browser": "Browser",
   "agent.right_pane.tabs.files": "Dateien",
   "agent.right_pane.tabs.status": "Status",
+  "agent.right_pane.tabs.terminal": "Terminal",
   "agent.session.add.title": "Sitzung hinzufügen",
   "agent.session.agent.delete.content": "Alle mit diesem Agenten verknüpften Sitzungen werden gelöscht. Der Agent selbst wird nicht gelöscht.",
   "agent.session.agent.delete.title": "Alle Sitzungen löschen",

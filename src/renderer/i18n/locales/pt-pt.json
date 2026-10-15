@@ -218,6 +218,7 @@
   "agent.right_pane.tabs.browser": "Navegador",
   "agent.right_pane.tabs.files": "Ficheiros",
   "agent.right_pane.tabs.status": "Estado",
+  "agent.right_pane.tabs.terminal": "Terminal",
   "agent.session.add.title": "Adicionar uma sessão",
   "agent.session.agent.delete.content": "Serão eliminadas todas as sessões associadas a este agente. O próprio agente não será eliminado.",
   "agent.session.agent.delete.title": "Eliminar todas as sessões",

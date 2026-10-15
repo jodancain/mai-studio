@@ -80,6 +80,18 @@ export const mockJobManager = {
   enqueue: vi.fn(() => ({ id: 'mock-job-id', snapshot: {}, finished: Promise.resolve({}) }))
 }
 
+/**
+ * Minimal TerminalService mock — AgentLifecycleService disposes session PTYs
+ * through `disposeMany` when sessions are deleted. Tests can assert on the spies.
+ */
+const mockTerminalService = {
+  ensure: vi.fn(async () => ({ replay: '', lastSeq: 0, alive: true })),
+  write: vi.fn(),
+  resize: vi.fn(),
+  dispose: vi.fn(),
+  disposeMany: vi.fn()
+}
+
 /** Default service instances from existing mock files */
 export const defaultServiceInstances = {
   PreferenceService: MockMainPreferenceServiceExport.preferenceService,
@@ -90,7 +102,8 @@ export const defaultServiceInstances = {
   MainWindowService: mockMainWindowService,
   WindowManager: mockWindowManager,
   IpcApiService: mockIpcApiService,
-  JobManager: mockJobManager
+  JobManager: mockJobManager,
+  TerminalService: mockTerminalService
 } as const
 
 /** Type for per-service overrides */

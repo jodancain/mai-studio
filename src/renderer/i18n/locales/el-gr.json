@@ -218,6 +218,7 @@
   "agent.right_pane.tabs.browser": "Πρόγραμμα περιήγησης",
   "agent.right_pane.tabs.files": "Αρχεία",
   "agent.right_pane.tabs.status": "Κατάσταση",
+  "agent.right_pane.tabs.terminal": "Τερματικό",
   "agent.session.add.title": "Προσθήκη συνεδρίας",
   "agent.session.agent.delete.content": "Θα διαγραφούν όλες οι συνεδρίες που σχετίζονται με αυτόν τον πράκτορα. Ο ίδιος ο πράκτορας δεν θα διαγραφεί.",
   "agent.session.agent.delete.title": "Διαγραφή όλων των συνεδριών",

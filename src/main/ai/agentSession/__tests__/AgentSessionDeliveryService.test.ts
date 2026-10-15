@@ -173,6 +173,7 @@ vi.mock('@application', () => ({
           listActiveWork: () => [],
           drainInFlight: async () => ({ stragglerIds: [] })
         }
+      if (name === 'TerminalService') return { disposeMany() {} }
       throw new Error(`Unexpected application.get(${name})`)
     }
   }

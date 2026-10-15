@@ -173,6 +173,8 @@ describe('AgentJobsService', () => {
           return { reconcileAgent: () => {} }
         case 'PowerService':
           return { preventSleep: () => ({ dispose: () => {} }) }
+        case 'TerminalService':
+          return { disposeMany: () => {} }
       }
       throw new Error(`Unexpected application.get('${name}')`)
     })
