@@ -16,3 +16,13 @@ export const LATEST_PRIVACY_POLICY_VERSION = '20260820'
  * this fork ships `app.privacy.data_collection.enabled` defaulting to false.
  */
 export const UPSTREAM_SERVICES_ENABLED = false
+
+/**
+ * Gates the in-app updater against this fork's OWN release feed (a Tailscale-served
+ * static directory on the internal network — see `publish.url` in electron-builder.yml).
+ * Split from {@link UPSTREAM_SERVICES_ENABLED}: that flag keeps upstream Cherry Studio
+ * endpoints (Sentry, remote catalog) disabled, while this one re-enables update checks
+ * now that the packaged feed URL points at the fork's internal release service.
+ * The feed is reachable only inside the tailnet; off-network checks fail soft and retry.
+ */
+export const SELF_UPDATE_FEED_ENABLED = true

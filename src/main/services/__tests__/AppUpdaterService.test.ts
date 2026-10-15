@@ -14,7 +14,7 @@ const { appEditionState, netFetchMock, releaseNotesCheckMock, releaseNotesUpdate
 
 vi.mock('@shared/utils/constants', async (importOriginal) => ({
   ...(await importOriginal<typeof Constants>()),
-  get UPSTREAM_SERVICES_ENABLED() {
+  get SELF_UPDATE_FEED_ENABLED() {
     return appEditionState.upstreamEnabled
   }
 }))
@@ -159,7 +159,7 @@ describe('AppUpdaterService', () => {
     appUpdater = new AppUpdaterService()
   })
 
-  it('blocks every upstream update entry in the internal release', async () => {
+  it('blocks every update entry when the self-update feed is disabled', async () => {
     appEditionState.upstreamEnabled = false
     expect(await appUpdater.queryUpdateAvailability()).toMatchObject({ status: 'unsupported' })
     expect(await appUpdater.getLatestReleaseNotes()).toBeNull()
@@ -314,7 +314,7 @@ describe('AppUpdaterService', () => {
       await expect(appUpdater.getReleaseHistory()).resolves.toEqual(history)
 
       expect(net.fetch).toHaveBeenCalledWith(
-        'https://releases.cherry-ai.com/release-history.json',
+        'https://ai.tail528b0c.ts.net/release-history.json',
         expect.objectContaining({
           headers: expect.objectContaining({
             'App-Version': 'v1.0.0',
