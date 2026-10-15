@@ -53,6 +53,12 @@ export const REASONING_FAMILY_RULES: readonly ReasoningFamilyRule[] = [
     wireDialect: 'effort'
   },
   {
+    pattern: '^(?:anthropic\\.)?claude-opus-5[.-]5(?!\\d)',
+    effort: ['low', 'medium', 'high', 'max'],
+    toggle: false,
+    wireDialect: 'effort'
+  },
+  {
     pattern:
       '^(?:anthropic\\.)?claude-(?:(?:opus|sonnet|haiku)-(?:4[.-][6-9]|[5-9])(?!\\d)|(?:opus|sonnet|haiku)-latest)',
     effort: ['low', 'medium', 'high', 'max'],

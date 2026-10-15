@@ -47,6 +47,7 @@ export default defineProvider({
     // ── Claude ────────────────────────────────────────────────────────────────
     { modelId: 'claude-fable-5', apiModelId: 'claude-fable-5', endpointTypes: [...CLAUDE_ENDPOINTS] },
     { modelId: 'claude-fable-5-1', apiModelId: 'claude-fable-5-1', endpointTypes: [...CLAUDE_ENDPOINTS] },
+    { modelId: 'claude-opus-5-5', apiModelId: 'claude-opus-5-5', endpointTypes: [...CLAUDE_ENDPOINTS] },
     { modelId: 'claude-opus-5', apiModelId: 'claude-opus-5', endpointTypes: [...CLAUDE_ENDPOINTS] },
     { modelId: 'claude-opus-4-8', apiModelId: 'claude-opus-4-8', endpointTypes: [...CLAUDE_ENDPOINTS] },
     { modelId: 'claude-opus-4-7', apiModelId: 'claude-opus-4-7', endpointTypes: [...CLAUDE_ENDPOINTS] },

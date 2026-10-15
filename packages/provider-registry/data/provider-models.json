@@ -17773,6 +17773,12 @@
       "providerId": "mai"
     },
     {
+      "apiModelId": "claude-opus-5-5",
+      "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
+      "modelId": "claude-opus-5-5",
+      "providerId": "mai"
+    },
+    {
       "apiModelId": "claude-sonnet-4-5@20250929",
       "endpointTypes": ["anthropic-messages", "openai-chat-completions"],
       "modelId": "claude-sonnet-4-5",
@@ -40817,5 +40823,5 @@
       "providerId": "zhipu"
     }
   ],
-  "version": "b89add69a6413478"
+  "version": "09dd4a07b437e915"
 }

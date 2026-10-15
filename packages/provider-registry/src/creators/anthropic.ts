@@ -15,6 +15,14 @@ export default defineCreator({
       toggle: false,
       wireDialect: 'effort'
     },
+    // Opus 5.5: thinking is always on — `thinking: disabled` and manual budgets
+    // both 400; effort is the only depth knob (default medium).
+    {
+      pattern: '^(?:anthropic\\.)?claude-opus-5[.-]5(?!\\d)',
+      effort: ['low', 'medium', 'high', 'max'],
+      toggle: false,
+      wireDialect: 'effort'
+    },
     // Adaptive-effort generations: 4.6+ minors, the 5.x/Fable line, and the
     // -latest aliases (which track the newest flagship).
     {
