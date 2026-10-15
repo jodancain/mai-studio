@@ -1,4 +1,5 @@
 const { Arch } = require('electron-builder')
+const { execFileSync } = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
@@ -9,6 +10,18 @@ exports.default = async function (context) {
   if (platform === 'windows') {
     fs.rmSync(path.join(context.appOutDir, 'LICENSE.electron.txt'), { force: true })
     fs.rmSync(path.join(context.appOutDir, 'LICENSES.chromium.html'), { force: true })
+  } else if (platform === 'mac') {
+    // macOS stamps freshly written binaries with com.apple.provenance (and
+    // Spotlight may add FinderInfo); codesign --options runtime then rejects
+    // them as "resource fork, Finder information, or similar detritus".
+    // xattr -cr cannot remove the SIP-guarded provenance attribute, so rewrite
+    // the bundle through ditto, which strips extended attributes on copy.
+    // afterPack runs right before signing, so the signed tree is clean.
+    const cleanDir = `${context.appOutDir}.xattr-clean`
+    fs.rmSync(cleanDir, { recursive: true, force: true })
+    execFileSync('ditto', ['--norsrc', '--noextattr', '--noqtn', '--noacl', context.appOutDir, cleanDir])
+    fs.rmSync(context.appOutDir, { recursive: true, force: true })
+    fs.renameSync(cleanDir, context.appOutDir)
   } else if (platform === 'linux') {
     const arch = context.arch === Arch.arm64 ? 'arm64' : context.arch === Arch.x64 ? 'x64' : null
     if (!arch) throw new Error(`Unsupported Linux packaging architecture: ${context.arch}`)
